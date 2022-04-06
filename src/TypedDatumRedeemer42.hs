@@ -8,11 +8,11 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
-module UntypedHelloWorld
-  ( helloWorldSerialised
-  , helloWorldSBS
-  , writeHelloWorldScript
-  , traceHelloWorld
+module TypedDatumRedeemer42
+  ( datumRedeemer42Serialised
+  , datumRedeemer42SBS
+  , writeDatumRedeemer42Script
+--  , traceDatumRedeemer42
   ) where
 
 import           Prelude (IO, putStrLn, Semigroup (..), (.), Show (..), String)
@@ -31,6 +31,7 @@ import           Data.Void                  (Void)
 import           Ledger
 import           Ledger.Ada                 as Ada
 import           Ledger.Constraints         as Constraints
+import qualified Ledger.Typed.Scripts       as Scripts
 import           Ledger.Typed.Scripts.Validators
 
 import           Plutus.Contract            as Contract
@@ -43,53 +44,70 @@ import           PlutusTx.Prelude           as P hiding (Semigroup (..), (.), un
 
 import           Wallet.Emulator.Wallet
 
-hello :: BuiltinData
-hello = BI.mkB "Hello World!"
-
 {-
-   The Hello World validator script
+   The Typed 42 validator script
 -}
 
-{-# INLINABLE helloWorld #-}
-
-helloWorld :: BuiltinData -> BuiltinData -> BuiltinData -> ()
-helloWorld datum _redeemer _context = if datum P.== hello then () else (P.error ())
+{-# INLINABLE mkValidator #-}
+mkValidator :: Integer -> Integer -> ScriptContext -> Bool
+mkValidator d r _ =
+    traceIfFalse "datum is not 42"    (d == 42) &&
+    traceIfFalse "redeemer is not 42" (r == 42)
 
 {-
-    As a Validator
+    As a typed validator
 -}
 
-helloWorldValidator :: Plutus.Validator
-helloWorldValidator = Plutus.mkValidatorScript $$(PlutusTx.compile [|| helloWorld ||])
+data Typed
+instance Scripts.ValidatorTypes Typed where
+    type instance DatumType Typed = Integer
+    type instance RedeemerType Typed = Integer
+
+typedValidator :: Scripts.TypedValidator Typed
+typedValidator = Scripts.mkTypedValidator @Typed
+    $$(PlutusTx.compile [|| mkValidator ||])
+    $$(PlutusTx.compile [|| wrap ||])
+  where
+    wrap = Scripts.wrapValidator @Integer @Integer
+
+
+datumRedeemer42Validator :: Plutus.Validator
+datumRedeemer42Validator = Scripts.validatorScript typedValidator
+
+--valHash :: Ledger.ValidatorHash
+--valHash = Scripts.validatorHash typedValidator
+
+--scrAddress :: Ledger.Address
+--scrAddress = scriptAddress validator
 
 {-
     As a Script
 -}
 
-helloWorldScript :: Plutus.Script
-helloWorldScript = Plutus.unValidatorScript helloWorldValidator
+datumRedeemer42Script :: Plutus.Script
+datumRedeemer42Script = Plutus.unValidatorScript datumRedeemer42Validator
 
 {-
-    As a Short Byte String
+   As a Short Byte String
 -}
 
-helloWorldSBS :: SBS.ShortByteString
-helloWorldSBS =  SBS.toShort . LBS.toStrict $ serialise helloWorldScript
+datumRedeemer42SBS :: SBS.ShortByteString
+datumRedeemer42SBS =  SBS.toShort . LBS.toStrict $ serialise datumRedeemer42Script
 
 {-
-    As a Serialised Script
+   As a Serialised Script
 -}
 
-helloWorldSerialised :: PlutusScript PlutusScriptV1
-helloWorldSerialised = PlutusScriptSerialised helloWorldSBS
+datumRedeemer42Serialised :: PlutusScript PlutusScriptV1
+datumRedeemer42Serialised = PlutusScriptSerialised datumRedeemer42SBS
 
-writeHelloWorldScript :: IO ()
-writeHelloWorldScript = void $ writeFileTextEnvelope "untyped-helloWorld.plutus" Nothing helloWorldSerialised  
+writeDatumRedeemer42Script :: IO ()
+writeDatumRedeemer42Script = void $ writeFileTextEnvelope "typed-datum-redeemer-42.plutus" Nothing datumRedeemer42Serialised
 
 {-
     Offchain Contract
 -}
-
+{-
 scrAddress :: Ledger.Address
 scrAddress = scriptAddress helloWorldValidator
 
@@ -125,3 +143,5 @@ helloWorldTrace :: EmulatorTrace ()
 helloWorldTrace = do
     void $ activateContractWallet (knownWallet 1) helloWorldContract
     void $ Emulator.nextSlot
+
+-}
