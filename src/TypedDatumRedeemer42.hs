@@ -12,7 +12,7 @@ module TypedDatumRedeemer42
   ( datumRedeemer42Serialised
   , datumRedeemer42SBS
   , writeDatumRedeemer42Script
---  , traceDatumRedeemer42
+  , traceDatumRedeemer42
   ) where
 
 import           Prelude (IO, putStrLn, Semigroup (..), (.), Show (..), String)
@@ -31,6 +31,7 @@ import           Data.Void                  (Void)
 import           Ledger
 import           Ledger.Ada                 as Ada
 import           Ledger.Constraints         as Constraints
+import           Ledger.Constraints.TxConstraints as TxConstraints
 import qualified Ledger.Typed.Scripts       as Scripts
 import           Ledger.Typed.Scripts.Validators
 
@@ -74,12 +75,6 @@ typedValidator = Scripts.mkTypedValidator @Typed
 datumRedeemer42Validator :: Plutus.Validator
 datumRedeemer42Validator = Scripts.validatorScript typedValidator
 
---valHash :: Ledger.ValidatorHash
---valHash = Scripts.validatorHash typedValidator
-
---scrAddress :: Ledger.Address
---scrAddress = scriptAddress validator
-
 {-
     As a Script
 -}
@@ -107,41 +102,41 @@ writeDatumRedeemer42Script = void $ writeFileTextEnvelope "typed-datum-redeemer-
 {-
     Offchain Contract
 -}
-{-
+
 scrAddress :: Ledger.Address
-scrAddress = scriptAddress helloWorldValidator
+scrAddress = scriptAddress datumRedeemer42Validator
 
 valHash :: ValidatorHash
-valHash = Ledger.validatorHash helloWorldValidator
+valHash = Ledger.validatorHash datumRedeemer42Validator
 
-helloWorldContract :: Contract () Empty Text ()
-helloWorldContract = do
+datumRedeemer42Contract :: Contract () Empty Text ()
+datumRedeemer42Contract = do
     logInfo @String $ "1: pay the script address"
-    let tx1 = Constraints.mustPayToOtherScript valHash (Plutus.Datum $ hello) $ Ada.lovelaceValueOf 2000000
+    let tx1 = Constraints.mustPayToOtherScript valHash (Plutus.Datum $ BI.mkI 42) $ Ada.lovelaceValueOf 2000000
     ledgerTx <- submitTx tx1
     awaitTxConfirmed $ getCardanoTxId ledgerTx
- 
-    logInfo @String $ "2: spend from script address including \"Hello World!\" datum"
+    logInfo @String $ "tx2 successfully submitted"
+
+    logInfo @String $ "2: spend from script address including datum and redeemer 'Integer 42'"
     utxos <- utxosAt scrAddress
     let orefs = fst <$> Map.toList utxos
-        lookups = Constraints.otherScript helloWorldValidator <>
+        lookups = Constraints.otherScript datumRedeemer42Validator <>
                   Constraints.unspentOutputs utxos
-        tx2 = mconcat [Constraints.mustSpendScriptOutput oref unitRedeemer | oref <- orefs] <> -- List comprehension
-              Constraints.mustIncludeDatum (Plutus.Datum $ BI.mkB "Not Hello World") -- doesn't seem to care what datum is
+        tx2 = mconcat [Constraints.mustSpendScriptOutput oref (Plutus.Redeemer $ BI.mkI 42) | oref <- orefs] <> -- List comprehension -- Changing redeemer value correctly throws ValidationError
+              Constraints.mustIncludeDatum (Plutus.Datum $ BI.mkB "Not 42") -- doesn't seem to care what datum is
+    Contract.logDebug $  requiredDatums tx2 -- does include wrong BS datum, idk
     ledgerTx <- submitTxConstraintsWith @Void lookups tx2
     awaitTxConfirmed $ getCardanoTxId ledgerTx
-    logInfo @String $ "\"Hello World!\" tx successfully submitted"
+    logInfo @String $ "tx2 successfully submitted"
 
 {-
     Trace 
 -}
 
-traceHelloWorld :: IO ()
-traceHelloWorld = runEmulatorTraceIO helloWorldTrace
+traceDatumRedeemer42 :: IO ()
+traceDatumRedeemer42 = runEmulatorTraceIO datumRedeemer42Trace
 
-helloWorldTrace :: EmulatorTrace ()
-helloWorldTrace = do
-    void $ activateContractWallet (knownWallet 1) helloWorldContract
+datumRedeemer42Trace :: EmulatorTrace ()
+datumRedeemer42Trace = do
+    void $ activateContractWallet (knownWallet 1) datumRedeemer42Contract
     void $ Emulator.nextSlot
-
--}
