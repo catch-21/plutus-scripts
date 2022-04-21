@@ -115,7 +115,7 @@ datumRedeemer42Contract = do
     let tx1 = Constraints.mustPayToOtherScript valHash (Plutus.Datum $ BI.mkI 42) $ Ada.lovelaceValueOf 2000000
     ledgerTx <- submitTx tx1
     awaitTxConfirmed $ getCardanoTxId ledgerTx
-    logInfo @String $ "tx2 successfully submitted"
+    logInfo @String $ "tx1 successfully submitted"
 
     logInfo @String $ "2: spend from script address including datum and redeemer 'Integer 42'"
     utxos <- utxosAt scrAddress
@@ -123,9 +123,12 @@ datumRedeemer42Contract = do
         lookups = Constraints.otherScript datumRedeemer42Validator <>
                   Constraints.unspentOutputs utxos
         tx2 = mconcat [Constraints.mustSpendScriptOutput oref (Plutus.Redeemer $ BI.mkI 42) | oref <- orefs] <> -- List comprehension -- Changing redeemer value correctly throws ValidationError
-              Constraints.mustIncludeDatum (Plutus.Datum $ BI.mkB "Not 42") -- doesn't seem to care what datum is
+              Constraints.mustIncludeDatum (Plutus.Datum $ BI.mkB "Not 42") <> -- doesn't seem to care what datum is
+              Constraints.mustValidateIn (to $ 1596059100000)
+
     Contract.logDebug $  requiredDatums tx2 -- does include wrong BS datum, idk
     ledgerTx <- submitTxConstraintsWith @Void lookups tx2
+    logInfo @String $ "waiting for tx2 confirmed..."
     awaitTxConfirmed $ getCardanoTxId ledgerTx
     logInfo @String $ "tx2 successfully submitted"
 
@@ -139,4 +142,4 @@ traceDatumRedeemer42 = runEmulatorTraceIO datumRedeemer42Trace
 datumRedeemer42Trace :: EmulatorTrace ()
 datumRedeemer42Trace = do
     void $ activateContractWallet (knownWallet 1) datumRedeemer42Contract
-    void $ Emulator.nextSlot
+    void $ Emulator.waitNSlots 2

@@ -12,6 +12,7 @@ library
   hs-source-dirs:      src
   exposed-modules:     UntypedHelloWorld
                      , TypedDatumRedeemer42
+                     , Deadline
   build-depends:       aeson
                      , base ^>=4.14.1.0
                      , bytestring
