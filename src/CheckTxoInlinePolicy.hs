@@ -35,7 +35,6 @@ import qualified Data.ByteString.Lazy       as LBS
 import           Data.Functor (void)
 import           Data.List
 import           Data.Map                   as Map
-import           Data.Maybe                 as M
 import           Data.Text                  (Text)
 import           Data.Void                  (Void)
 
@@ -65,7 +64,7 @@ data ExpInline = ExpInlineDatum
                      expDatum :: Datum } |
                  ExpInlineDatumHash
                    { txOutRef  :: TxOutRef,
-                     expDatumHash :: DatumHash }
+                     expDatumHash :: Maybe DatumHash }
      deriving Show
 
 PlutusTx.unstableMakeIsData ''ExpInline
@@ -79,6 +78,8 @@ PlutusTx.unstableMakeIsData ''SomeData
 
 someData = SomeData{name = "cats", age = 42, shopping = ["apple", "tomato", "cheese"]}
 
+fortyTwo = 42 :: Integer
+
 myDatum = Datum $ PlutusTx.dataToBuiltinData $ PlutusTx.toData someData
 
 myDatumHash = datumHash myDatum
@@ -89,7 +90,7 @@ myDatumHash = datumHash myDatum
 
 redeemerDatum = ExpInlineDatum{txOutRef = TxOutRef{ txOutRefId = "b204b4554a827178b48275629e5eac9bde4f5350badecfcd108d87446f00bf26", txOutRefIdx = 0}, expDatum = myDatum}
 
-redeemerDatumHash = ExpInlineDatumHash{txOutRef = TxOutRef{ txOutRefId = "b204b4554a827178b48275629e5eac9bde4f5350badecfcd108d87446f00bf26", txOutRefIdx = 0}, expDatumHash = myDatumHash}
+redeemerDatumHash = ExpInlineDatumHash{txOutRef = TxOutRef{ txOutRefId = "b204b4554a827178b48275629e5eac9bde4f5350badecfcd108d87446f00bf26", txOutRefIdx = 0}, expDatumHash = Just myDatumHash}
 
 printRedeemerDatum = print $ "Redeemer Datum: " <> A.encode (scriptDataToJson ScriptDataJsonDetailedSchema $ fromPlutusData $ Plutus.Api.toData redeemerDatum)
 
@@ -100,15 +101,29 @@ printRedeemerDatumHash = print $ "Redeemer Datum Hash: " <> A.encode (scriptData
 -}
 
 
-{-# INLINABLE mintExpectedInline #-}
-mintExpectedInline :: ExpInline -> ScriptContext -> Bool
-mintExpectedInline expInline ctx =
+{-# INLINABLE expectedInlinePolicy #-}
+expectedInlinePolicy :: ExpInline -> ScriptContext -> Bool
+expectedInlinePolicy expInline ctx =
     case expInline of
-      ExpInlineDatum {..} ->
-        traceIfFalse "Is ExpInlineDatum" False
+      ExpInlineDatum {} ->
+        traceIfFalse "ExpInlineDatum is not yet supported" False
       ExpInlineDatumHash {..} ->
-        traceIfFalse "Is ExpInlineDatumHash" False
+        if isNothing expDatumHash
+        then traceIfFalse "Expected txIn to have no datum hash but it does" noDatumHashInTxo
+        else traceIfFalse "Expected txIn to have datum hash but it doesn't" datumHashInTxo  
+        where
+          datumHashInTxo = expDatumHash P.== (txOutDatumHash $ txInInfoResolved findTxIn)
+          noDatumHashInTxo = P.isNothing $ txOutDatumHash $ txInInfoResolved findTxIn
+    where
+      info :: TxInfo
+      info = scriptContextTxInfo ctx
 
+      fromJust' :: BuiltinString -> Maybe a -> a
+      fromJust' err Nothing  = traceError err
+      fromJust' _ (Just x)   = x
+
+      findTxIn :: TxInInfo
+      findTxIn = fromJust' "txIn doesn't exist" $ findTxInByTxOutRef (txOutRef expInline) info
 
 {-
     As a Minting Policy
@@ -117,7 +132,7 @@ mintExpectedInline expInline ctx =
 policy :: Scripts.MintingPolicy
 policy = Plutus.mkMintingPolicyScript $$(PlutusTx.compile [|| wrap ||])
   where
-    wrap = Scripts.wrapMintingPolicy mintExpectedInline 
+    wrap = Scripts.wrapMintingPolicy expectedInlinePolicy 
 
 {-
     As a Script
