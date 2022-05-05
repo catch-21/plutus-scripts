@@ -1,82 +1,85 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE DeriveAnyClass        #-}
+{-# LANGUAGE DeriveGeneric         #-}
+{-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE NoImplicitPrelude     #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE RankNTypes            #-}
+{-# LANGUAGE RecordWildCards       #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TemplateHaskell       #-}
+{-# LANGUAGE TypeApplications      #-}
+{-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE TypeOperators         #-}
 
 module CheckTxoInlinePolicy
-  ( printRedeemerDatumHash
-  , printRedeemerDatum
-  , serialisedScript
-  , scriptSBS
-  , script
-  , writeSerialisedScript
---  , runTrace
-  ) where
+  ( printRedeemerDatumHash,
+    printRedeemerDatum,
+    serialisedScript,
+    scriptSBS,
+    script,
+    writeSerialisedScript,
+    --  , runTrace
+  )
+where
 
-import           Prelude (IO, putStrLn, Semigroup (..), (.), Show (..), String, print)
-
-import           Cardano.Api (writeFileTextEnvelope)
-import           Cardano.Api.Shelley (PlutusScript (..), PlutusScriptV1, fromPlutusData, toPlutusData, scriptDataToJson, ScriptDataJsonSchema(ScriptDataJsonDetailedSchema))
-
+import           Cardano.Api                     (writeFileTextEnvelope)
+import           Cardano.Api.Shelley             (PlutusScript (..),
+                                                  PlutusScriptV1,
+                                                  ScriptDataJsonSchema (ScriptDataJsonDetailedSchema),
+                                                  fromPlutusData,
+                                                  scriptDataToJson,
+                                                  toPlutusData)
 import           Codec.Serialise
-import           Data.Aeson                 as A
-import qualified Data.ByteString.Short      as SBS
-import qualified Data.ByteString.Lazy       as LBS
-import           Data.Functor (void)
-import           Data.List
-import           Data.Map                   as Map
-import           Data.Text                  (Text)
-import           Data.Void                  (Void)
-
+import           Data.Aeson                      as A
+import qualified Data.ByteString.Lazy            as LBS
+import qualified Data.ByteString.Short           as SBS
+import           Data.Functor                    (void)
 import           Ledger
-import           Ledger.Ada                 as Ada
-import           Ledger.Constraints         as Constraints
-import qualified Ledger.Typed.Scripts       as Scripts
+import           Ledger.Ada                      as Ada
+import           Ledger.Constraints              as Constraints
+import qualified Ledger.Typed.Scripts            as Scripts
 import           Ledger.Typed.Scripts.Validators
-import           Ledger.Value               as Value
-
-import           Plutus.Contract            as Contract
-import           Plutus.Trace.Emulator      as Emulator
-import qualified Plutus.V1.Ledger.Scripts   as Plutus
-import qualified Plutus.V1.Ledger.Api       as Plutus.Api
+import           Ledger.Value                    as Value
+import           Plutus.Contract                 as Contract
+import           Plutus.Trace.Emulator           as Emulator
+import qualified Plutus.V1.Ledger.Api            as Plutus.Api
+import qualified Plutus.V1.Ledger.Scripts        as Plutus
 import qualified PlutusTx
-import qualified PlutusTx.Builtins          as BI
-import           PlutusTx.Prelude           as P hiding (Semigroup (..), (.), unless)
-
+import qualified PlutusTx.Builtins               as BI
+import           PlutusTx.Prelude                as P hiding (Semigroup (..),
+                                                       unless, (.))
+import           Prelude                         (IO, Semigroup (..), Show (..),
+                                                  String, print, putStrLn, (.))
 import           Wallet.Emulator.Wallet
 
 {-
    Define redeemer type to handle expected inline datum or datum hash at a txo
 -}
 
-data ExpInline = ExpInlineDatum
-                   { txOutRef :: TxOutRef,
-                     expDatum :: Datum } |
-                 ExpInlineDatumHash
-                   { txOutRef  :: TxOutRef,
-                     expDatumHash :: Maybe DatumHash }
-     deriving Show
+data ExpInline
+    = ExpInlineDatum
+        { txOutRef :: TxOutRef,
+        expDatum   :: Datum
+        }
+    | ExpInlineDatumHash
+        { txOutRef   :: TxOutRef,
+        expDatumHash :: Maybe DatumHash
+        }
+    deriving (Show)
 
 PlutusTx.unstableMakeIsData ''ExpInline
 
-{- 
+{-
    Define datum to use
 -}
 
-data SomeData = SomeData{name :: BuiltinByteString, age ::Integer, shopping :: [BuiltinByteString]}
+data SomeData = SomeData {name :: BuiltinByteString, age :: Integer, shopping :: [BuiltinByteString]}
+
 PlutusTx.unstableMakeIsData ''SomeData
 
-someData = SomeData{name = "cats", age = 42, shopping = ["apple", "tomato", "cheese"]}
+someData = SomeData {name = "cats", age = 42, shopping = ["apple", "tomato", "cheese"]}
 
 fortyTwo = 42 :: Integer
 
@@ -88,9 +91,9 @@ myDatumHash = datumHash myDatum
    Redeemers
 -}
 
-redeemerDatum = ExpInlineDatum{txOutRef = TxOutRef{ txOutRefId = "b204b4554a827178b48275629e5eac9bde4f5350badecfcd108d87446f00bf26", txOutRefIdx = 0}, expDatum = myDatum}
+redeemerDatum = ExpInlineDatum {txOutRef = TxOutRef {txOutRefId = "b204b4554a827178b48275629e5eac9bde4f5350badecfcd108d87446f00bf26", txOutRefIdx = 0}, expDatum = myDatum}
 
-redeemerDatumHash = ExpInlineDatumHash{txOutRef = TxOutRef{ txOutRefId = "b204b4554a827178b48275629e5eac9bde4f5350badecfcd108d87446f00bf26", txOutRefIdx = 0}, expDatumHash = Just myDatumHash}
+redeemerDatumHash = ExpInlineDatumHash {txOutRef = TxOutRef {txOutRefId = "b204b4554a827178b48275629e5eac9bde4f5350badecfcd108d87446f00bf26", txOutRefIdx = 0}, expDatumHash = Just myDatumHash}
 
 printRedeemerDatum = print $ "Redeemer Datum: " <> A.encode (scriptDataToJson ScriptDataJsonDetailedSchema $ fromPlutusData $ Plutus.Api.toData redeemerDatum)
 
@@ -100,39 +103,38 @@ printRedeemerDatumHash = print $ "Redeemer Datum Hash: " <> A.encode (scriptData
    The validator script
 -}
 
-
-{-# INLINABLE expectedInlinePolicy #-}
+{-# INLINEABLE expectedInlinePolicy #-}
 expectedInlinePolicy :: ExpInline -> ScriptContext -> Bool
 expectedInlinePolicy expInline ctx =
     case expInline of
-      ExpInlineDatum {} ->
+    ExpInlineDatum {} ->
         traceIfFalse "ExpInlineDatum is not yet supported" False
-      ExpInlineDatumHash {..} ->
+    ExpInlineDatumHash {..} ->
         if isNothing expDatumHash
         then traceIfFalse "Expected txIn to have no datum hash but it does" noDatumHashInTxo
-        else traceIfFalse "Expected txIn to have datum hash but it doesn't" datumHashInTxo  
+        else traceIfFalse "Expected txIn to have datum hash but it doesn't" datumHashInTxo
         where
-          datumHashInTxo = expDatumHash P.== (txOutDatumHash $ txInInfoResolved findTxIn)
-          noDatumHashInTxo = P.isNothing $ txOutDatumHash $ txInInfoResolved findTxIn
+        datumHashInTxo = expDatumHash P.== txOutDatumHash (txInInfoResolved findTxIn)
+        noDatumHashInTxo = P.isNothing $ txOutDatumHash $ txInInfoResolved findTxIn
     where
-      info :: TxInfo
-      info = scriptContextTxInfo ctx
+    info :: TxInfo
+    info = scriptContextTxInfo ctx
 
-      fromJust' :: BuiltinString -> Maybe a -> a
-      fromJust' err Nothing  = traceError err
-      fromJust' _ (Just x)   = x
+    fromJust' :: BuiltinString -> Maybe a -> a
+    fromJust' err Nothing = traceError err
+    fromJust' _ (Just x)  = x
 
-      findTxIn :: TxInInfo
-      findTxIn = fromJust' "txIn doesn't exist" $ findTxInByTxOutRef (txOutRef expInline) info
+    findTxIn :: TxInInfo
+    findTxIn = fromJust' "txIn doesn't exist" $ findTxInByTxOutRef (txOutRef expInline) info
 
 {-
     As a Minting Policy
 -}
 
 policy :: Scripts.MintingPolicy
-policy = Plutus.mkMintingPolicyScript $$(PlutusTx.compile [|| wrap ||])
-  where
-    wrap = Scripts.wrapMintingPolicy expectedInlinePolicy 
+policy = Plutus.mkMintingPolicyScript $$(PlutusTx.compile [||wrap||])
+    where
+        wrap = Scripts.wrapMintingPolicy expectedInlinePolicy
 
 {-
     As a Script
@@ -146,7 +148,7 @@ script = Plutus.unMintingPolicyScript policy
 -}
 
 scriptSBS :: SBS.ShortByteString
-scriptSBS =  SBS.toShort . LBS.toStrict $ serialise script
+scriptSBS = SBS.toShort . LBS.toStrict $ serialise script
 
 {-
     As a Serialised Script
@@ -176,7 +178,7 @@ helloWorldContract = do
     let tx1 = Constraints.mustPayToOtherScript valHash (Plutus.Datum $ hello) $ Ada.lovelaceValueOf 2000000
     ledgerTx <- submitTx tx1
     awaitTxConfirmed $ getCardanoTxId ledgerTx
- 
+
     logInfo @String $ "2: spend from script address including \"Hello World!\" datum"
     utxos <- utxosAt scrAddress
     let orefs = fst <$> Map.toList utxos
@@ -189,7 +191,7 @@ helloWorldContract = do
     logInfo @String $ "\"Hello World!\" tx successfully submitted"
 
 {-
-    Trace 
+    Trace
 -}
 
 traceHelloWorld :: IO ()

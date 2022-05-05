@@ -1,51 +1,50 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE NoImplicitPrelude   #-}
+{-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TemplateHaskell     #-}
+{-# LANGUAGE TypeApplications    #-}
+{-# LANGUAGE TypeFamilies        #-}
+{-# LANGUAGE TypeOperators       #-}
 
 module Deadline
-  ( serialisedScript
-  , scriptSBS
-  , script
-  , writeSerialisedScript
-  , runTrace
-  ) where
+  ( serialisedScript,
+    scriptSBS,
+    script,
+    writeSerialisedScript,
+    runTrace,
+  )
+where
 
-import           Prelude (IO, putStrLn, Semigroup (..), (.), Show (..), String)
-
-import           Cardano.Api (writeFileTextEnvelope)
-import           Cardano.Api.Shelley (PlutusScript (..), PlutusScriptV1)
-
-import           Control.Monad.Freer.Extras as Extras
-
+import           Cardano.Api                      (writeFileTextEnvelope)
+import           Cardano.Api.Shelley              (PlutusScript (..),
+                                                   PlutusScriptV1)
 import           Codec.Serialise
-import qualified Data.ByteString.Short      as SBS
-import qualified Data.ByteString.Lazy       as LBS
-import           Data.Functor (void)
-import           Data.Map                   as Map
-import           Data.Text                  (Text)
-import           Data.Void                  (Void)
-
+import           Control.Monad.Freer.Extras       as Extras
+import qualified Data.ByteString.Lazy             as LBS
+import qualified Data.ByteString.Short            as SBS
+import           Data.Functor                     (void)
+import           Data.Map                         as Map
+import           Data.Text                        (Text)
+import           Data.Void                        (Void)
 import           Ledger
-import           Ledger.Ada                 as Ada
-import           Ledger.Constraints         as Constraints
+import           Ledger.Ada                       as Ada
+import           Ledger.Constraints               as Constraints
 import           Ledger.Constraints.TxConstraints as TxConstraints
-import qualified Ledger.Typed.Scripts       as Scripts
+import qualified Ledger.Typed.Scripts             as Scripts
 import           Ledger.Typed.Scripts.Validators
-
-import           Plutus.Contract            as Contract
-import           Plutus.Trace.Emulator      as Emulator
-import qualified Plutus.V1.Ledger.Scripts   as Plutus
-import qualified Plutus.V1.Ledger.Api       as Ledger.Api
+import           Plutus.Contract                  as Contract
+import           Plutus.Trace.Emulator            as Emulator
+import qualified Plutus.V1.Ledger.Api             as Ledger.Api
+import qualified Plutus.V1.Ledger.Scripts         as Plutus
 import qualified PlutusTx
-import qualified PlutusTx.Builtins          as BI
-import           PlutusTx.Prelude           as P hiding (Semigroup (..), (.), unless)
-
+import qualified PlutusTx.Builtins                as BI
+import           PlutusTx.Prelude                 as P hiding (Semigroup (..),
+                                                        unless, (.))
+import           Prelude                          (IO, Semigroup (..),
+                                                   Show (..), String, putStrLn,
+                                                   (.))
 import           Wallet.Emulator.Wallet
 
 {-
@@ -53,13 +52,14 @@ import           Wallet.Emulator.Wallet
 -}
 
 deadline :: POSIXTime
-deadline = 1696059095000  -- (milliseconds) transaction's valid range must be before this
+deadline = 1696059095000 -- (milliseconds) transaction's valid range must be before this
 
-{-# INLINABLE mkValidator #-}
+{-# INLINEABLE mkValidator #-}
 mkValidator :: POSIXTime -> BuiltinData -> BuiltinData -> ScriptContext -> Bool
-mkValidator dl _ _ ctx = (to dl) `contains` range 
---traceIfFalse (decodeUtf8 $ BI.unsafeDataAsB $ PlutusTx.toBuiltinData range) ((to dl) `contains` range)
-  where
+mkValidator dl _ _ ctx = (to dl) `contains` range
+    where
+    --traceIfFalse (decodeUtf8 $ BI.unsafeDataAsB $ PlutusTx.toBuiltinData range) ((to dl) `contains` range)
+
     info :: TxInfo
     info = scriptContextTxInfo ctx
 
@@ -71,11 +71,12 @@ mkValidator dl _ _ ctx = (to dl) `contains` range
 -}
 
 validator :: POSIXTime -> Plutus.Validator
-validator t = Ledger.mkValidatorScript $
-    $$(PlutusTx.compile [|| validatorParam ||])
-     `PlutusTx.applyCode`
-      PlutusTx.liftCode deadline
-    where validatorParam s = Scripts.wrapValidator (mkValidator s)
+validator t =
+    Ledger.mkValidatorScript $
+    $$(PlutusTx.compile [||validatorParam||])
+        `PlutusTx.applyCode` PlutusTx.liftCode deadline
+    where
+    validatorParam s = Scripts.wrapValidator (mkValidator s)
 
 {-
     As a Script
@@ -89,7 +90,7 @@ script = Plutus.unValidatorScript $ validator deadline
 -}
 
 scriptSBS :: SBS.ShortByteString
-scriptSBS =  SBS.toShort . LBS.toStrict $ serialise script
+scriptSBS = SBS.toShort . LBS.toStrict $ serialise script
 
 {-
    As a Serialised Script
@@ -117,24 +118,26 @@ contract = do
     Contract.logInfo @String $ "now: " ++ show now
     Contract.logInfo @String $ "1: pay the script address"
     let tx1 = Constraints.mustPayToOtherScript valHash unitDatum $ Ada.lovelaceValueOf 2000000
-    ledgerTx <- submitTx tx1
-    awaitTxConfirmed $ getCardanoTxId ledgerTx
+    ledgerTx1 <- submitTx tx1
+    awaitTxConfirmed $ getCardanoTxId ledgerTx1
     Contract.logInfo @String $ "tx1 successfully submitted"
     Contract.logInfo @String $ "2: spend from script address with expected validity interval"
     utxos <- utxosAt scrAddress
     let orefs = fst <$> Map.toList utxos
-        lookups = Constraints.otherScript (validator deadline) <>
-                  Constraints.unspentOutputs utxos
-        tx2 = mconcat [Constraints.mustSpendScriptOutput oref unitRedeemer | oref <- orefs] <>
-              Constraints.mustIncludeDatum unitDatum <>
-              Constraints.mustValidateIn (to $ deadline - 1)
-    ledgerTx <- submitTxConstraintsWith @Void lookups tx2
+        lookups =
+            Constraints.otherScript (validator deadline)
+            <> Constraints.unspentOutputs utxos
+        tx2 =
+            mconcat [Constraints.mustSpendScriptOutput oref unitRedeemer | oref <- orefs]
+            <> Constraints.mustIncludeDatum unitDatum
+            <> Constraints.mustValidateIn (to $ deadline - 1)
+    ledgerTx2 <- submitTxConstraintsWith @Void lookups tx2
     Contract.logInfo @String $ "waiting for tx2 confirmed..."
-    awaitTxConfirmed $ getCardanoTxId ledgerTx
+    awaitTxConfirmed $ getCardanoTxId ledgerTx2
     Contract.logInfo @String $ "tx2 successfully submitted"
 
 {-
-    Trace 
+    Trace
 -}
 
 runTrace :: IO ()
