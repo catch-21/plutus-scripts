@@ -15,6 +15,7 @@ library
                      , Deadline
                      , TokenNamePolicy
                      , CheckTxoInlinePolicy
+                     , CheckRedeemersPolicy
   build-depends:       aeson
                      , base ^>=4.14.1.0
                      , bytestring

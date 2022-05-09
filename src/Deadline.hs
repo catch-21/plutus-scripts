@@ -52,7 +52,7 @@ import           Wallet.Emulator.Wallet
 -}
 
 deadline :: POSIXTime
-deadline = 1696059095000 -- (milliseconds) transaction's valid range must be before this
+deadline = 1596059095000 -- (milliseconds) transaction's valid range must be before this
 
 {-# INLINEABLE mkValidator #-}
 mkValidator :: POSIXTime -> BuiltinData -> BuiltinData -> ScriptContext -> Bool
