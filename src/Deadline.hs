@@ -130,7 +130,7 @@ contract = do
         tx2 =
             mconcat [Constraints.mustSpendScriptOutput oref unitRedeemer | oref <- orefs]
             <> Constraints.mustIncludeDatum unitDatum
-            <> Constraints.mustValidateIn (to $ deadline - 1)
+            <> Constraints.mustValidateIn (to $ deadline - 1001) -- cannot be 1ms before
     ledgerTx2 <- submitTxConstraintsWith @Void lookups tx2
     Contract.logInfo @String $ "waiting for tx2 confirmed..."
     awaitTxConfirmed $ getCardanoTxId ledgerTx2
