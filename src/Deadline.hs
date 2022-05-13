@@ -7,6 +7,7 @@
 {-# LANGUAGE TypeApplications    #-}
 {-# LANGUAGE TypeFamilies        #-}
 {-# LANGUAGE TypeOperators       #-}
+{-# OPTIONS_GHC -Wall #-}
 
 module Deadline
   ( serialisedScript,
@@ -32,6 +33,7 @@ import           Ledger
 import           Ledger.Ada                       as Ada
 import           Ledger.Constraints               as Constraints
 import           Ledger.Constraints.TxConstraints as TxConstraints
+import qualified Ledger.Typed.Scripts             as Ledger
 import qualified Ledger.Typed.Scripts             as Scripts
 import           Ledger.Typed.Scripts.Validators
 import           Plutus.Contract                  as Contract
@@ -47,6 +49,53 @@ import           Prelude                          (IO, Semigroup (..),
                                                    (.))
 import           Wallet.Emulator.Wallet
 
+
+
+-------------------------------------------------------------------------------
+-- Disp like Show (Good for debuging time interval emulator issue, can remove once resolved)
+-------------------------------------------------------------------------------
+
+class Disp a where
+    disp :: a -> BuiltinByteString -> BuiltinByteString
+
+instance Disp a => Disp (Interval a) where
+    disp (Interval lb ub) end =
+        "Interval(" `appendByteString` disp lb (44 `consByteString` disp ub (41 `consByteString` end))
+
+-- not showing the [ ( difference
+instance Disp a => Disp (LowerBound a) where
+    disp (LowerBound x _) end = disp x end
+
+instance Disp a => Disp (UpperBound a) where
+    disp (UpperBound x _) end = disp x end
+
+instance Disp a => Disp (Extended a) where
+    disp (Finite x) end = disp x end
+    disp NegInf     end = "NegInf" `appendByteString` end
+    disp PosInf     end = "PosInf" `appendByteString` end
+
+instance Disp POSIXTime where
+    disp (POSIXTime i) = disp i
+
+instance Disp Integer where
+    disp n end
+        | n < 0     = 45 `consByteString` go (negate n) end
+        | n == 0    = 48 `consByteString` emptyByteString
+        | otherwise = go n end
+      where
+        go :: Integer -> BuiltinByteString -> BuiltinByteString
+        go m acc
+            | m == 0    = acc
+            | otherwise =
+                  let
+                    m' = m `P.divide` 10
+                    r  = m `modulo` 10
+                  in
+                    go m' $ consByteString (r + 48) acc
+
+
+
+
 {-
    The timelocked validator script
 -}
@@ -55,11 +104,9 @@ deadline :: POSIXTime
 deadline = 1596059095000 -- (milliseconds) transaction's valid range must be before this
 
 {-# INLINEABLE mkValidator #-}
-mkValidator :: POSIXTime -> BuiltinData -> BuiltinData -> ScriptContext -> Bool
-mkValidator dl _ _ ctx = (to dl) `contains` range
+mkValidator :: POSIXTime -> () -> () -> ScriptContext -> Bool
+mkValidator dl _ _ ctx = traceError (decodeUtf8 (disp range "")) -- to dl `contains` range
     where
-    --traceIfFalse (decodeUtf8 $ BI.unsafeDataAsB $ PlutusTx.toBuiltinData range) ((to dl) `contains` range)
-
     info :: TxInfo
     info = scriptContextTxInfo ctx
 
@@ -70,27 +117,30 @@ mkValidator dl _ _ ctx = (to dl) `contains` range
     As a validator
 -}
 
-validator :: POSIXTime -> Plutus.Validator
-validator t =
-    Ledger.mkValidatorScript $
-    $$(PlutusTx.compile [||validatorParam||])
-        `PlutusTx.applyCode` PlutusTx.liftCode deadline
+instance Scripts.ValidatorTypes POSIXTime where
+    type instance RedeemerType POSIXTime = ()
+    type instance DatumType POSIXTime = ()
+
+typedValidator :: POSIXTime -> Scripts.TypedValidator POSIXTime
+typedValidator = Scripts.mkTypedValidatorParam @POSIXTime
+    $$(PlutusTx.compile [||mkValidator||])
+    $$(PlutusTx.compile [|| wrap ||])
     where
-    validatorParam s = Scripts.wrapValidator (mkValidator s)
+        wrap = Scripts.wrapValidator
 
 {-
     As a Script
 -}
 
-script :: Plutus.Script
-script = Plutus.unValidatorScript $ validator deadline
+script :: POSIXTime -> Validator
+script = Scripts.validatorScript . typedValidator
 
 {-
    As a Short Byte String
 -}
 
 scriptSBS :: SBS.ShortByteString
-scriptSBS = SBS.toShort . LBS.toStrict $ serialise script
+scriptSBS = SBS.toShort . LBS.toStrict $ serialise $ script deadline
 
 {-
    As a Serialised Script
@@ -107,17 +157,18 @@ writeSerialisedScript = void $ writeFileTextEnvelope "deadline.plutus" Nothing s
 -}
 
 scrAddress :: Ledger.Address
-scrAddress = scriptAddress $ validator deadline
+scrAddress = Scripts.validatorAddress $ typedValidator deadline
+--scrAddress = Ledger.scriptHashAddress valHash
 
 valHash :: ValidatorHash
-valHash = Ledger.validatorHash $ validator deadline
+valHash = validatorHash $ typedValidator deadline
 
 contract :: Contract () Empty Text ()
 contract = do
     now <- currentTime
     Contract.logInfo @String $ "now: " ++ show now
     Contract.logInfo @String $ "1: pay the script address"
-    let tx1 = Constraints.mustPayToOtherScript valHash unitDatum $ Ada.lovelaceValueOf 2000000
+    let tx1 = Constraints.mustPayToOtherScript valHash unitDatum $ Ada.lovelaceValueOf 25000000
     ledgerTx1 <- submitTx tx1
     awaitTxConfirmed $ getCardanoTxId ledgerTx1
     Contract.logInfo @String $ "tx1 successfully submitted"
@@ -125,12 +176,12 @@ contract = do
     utxos <- utxosAt scrAddress
     let orefs = fst <$> Map.toList utxos
         lookups =
-            Constraints.otherScript (validator deadline)
+            Constraints.otherScript (script deadline)
             <> Constraints.unspentOutputs utxos
         tx2 =
             mconcat [Constraints.mustSpendScriptOutput oref unitRedeemer | oref <- orefs]
             <> Constraints.mustIncludeDatum unitDatum
-            <> Constraints.mustValidateIn (to $ deadline - 1001) -- cannot be 1ms before
+            <> Constraints.mustValidateIn (from $ now - 1000) -- FAILS
     ledgerTx2 <- submitTxConstraintsWith @Void lookups tx2
     Contract.logInfo @String $ "waiting for tx2 confirmed..."
     awaitTxConfirmed $ getCardanoTxId ledgerTx2

@@ -89,10 +89,11 @@ writeHelloWorldScript = void $ writeFileTextEnvelope "untyped-helloWorld.plutus"
 -}
 
 scrAddress :: Ledger.Address
-scrAddress = scriptAddress helloWorldValidator
+scrAddress = plutusV1ScriptAddress helloWorldValidator
+--scrAddress = Ledger.scriptHashAddress valHash
 
 valHash :: ValidatorHash
-valHash = Ledger.validatorHash helloWorldValidator
+valHash = validatorHash $ unsafeMkTypedValidator helloWorldValidator -- TODO: use Plutus.Script.Utils.V1.Scripts.validatorHash from plutus-script-utils when merged into next-node branch
 
 helloWorldContract :: Contract () Empty Text ()
 helloWorldContract = do

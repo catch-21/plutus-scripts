@@ -104,10 +104,11 @@ writeDatumRedeemer42Script = void $ writeFileTextEnvelope "typed-datum-redeemer-
 -}
 
 scrAddress :: Ledger.Address
-scrAddress = scriptAddress datumRedeemer42Validator
+scrAddress = Scripts.validatorAddress typedValidator
+--scrAddress = Ledger.scriptHashAddress valHash
 
 valHash :: ValidatorHash
-valHash = Ledger.validatorHash datumRedeemer42Validator
+valHash = validatorHash typedValidator
 
 datumRedeemer42Contract :: Contract () Empty Text ()
 datumRedeemer42Contract = do
