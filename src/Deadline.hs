@@ -37,6 +37,7 @@ import qualified Ledger.Typed.Scripts             as Ledger
 import qualified Ledger.Typed.Scripts             as Scripts
 import           Ledger.Typed.Scripts.Validators
 import           Plutus.Contract                  as Contract
+import qualified Plutus.Script.Utils.V1           as PSU.V1
 import           Plutus.Trace.Emulator            as Emulator
 import qualified Plutus.V1.Ledger.Api             as Ledger.Api
 import qualified Plutus.V1.Ledger.Scripts         as Plutus
@@ -126,7 +127,7 @@ typedValidator = Scripts.mkTypedValidatorParam @POSIXTime
     $$(PlutusTx.compile [||mkValidator||])
     $$(PlutusTx.compile [|| wrap ||])
     where
-        wrap = Scripts.wrapValidator
+        wrap = PSU.V1.wrapValidator
 
 {-
     As a Script
@@ -160,7 +161,7 @@ scrAddress :: Ledger.Address
 scrAddress = Scripts.validatorAddress $ typedValidator deadline
 --scrAddress = Ledger.scriptHashAddress valHash
 
-valHash :: ValidatorHash
+valHash :: PSU.V1.ValidatorHash
 valHash = validatorHash $ typedValidator deadline
 
 contract :: Contract () Empty Text ()

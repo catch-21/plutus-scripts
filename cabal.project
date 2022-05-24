@@ -50,7 +50,7 @@ package cardano-wallet-core-integration
 source-repository-package
   type: git
   location: https://github.com/input-output-hk/plutus-apps.git
-  tag:50290ad1b3df8786c10f36027e9f2a9cf5a9a868
+  tag:5d2c19310b1d95be468a197dee6d5f9ee408d051
   subdir:
     freer-extras
     playground-common
@@ -58,6 +58,7 @@ source-repository-package
     plutus-contract
     plutus-ledger
     plutus-ledger-constraints
+    plutus-script-utils
     quickcheck-dynamic
 
 -- Direct dependency.

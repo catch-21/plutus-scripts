@@ -14,8 +14,9 @@ library
                      , TypedDatumRedeemer42
                      , Deadline
                      , TokenNamePolicy
-                     , CheckInputDatumPolicy
-                     --, CheckInputInlineDatumPolicy
+                     , CheckDatumPolicy
+                     --, CheckReferenceInputsPolicy
+                     CheckReferenceScriptPolicy
                      --, CheckRedeemersPolicy
   build-depends:       aeson
                      , base ^>=4.14.1.0
@@ -24,11 +25,11 @@ library
                      , cardano-api
                      , data-default
                      , freer-extras
---                     , playground-common
                      , plutus-contract
                      , plutus-ledger
                      , plutus-ledger-api
                      , plutus-ledger-constraints
+                     , plutus-script-utils
                      , plutus-tx-plugin
                      , plutus-tx
                      , text

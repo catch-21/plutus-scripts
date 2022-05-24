@@ -13,9 +13,9 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeOperators         #-}
 
-module CheckInputDatumPolicy
-  ( printRedeemerDatumHash,
-    printRedeemerDatum,
+module CheckReferenceScriptPolicy
+  ( policyHash,
+    printRedeemer,
     serialisedScript,
     scriptSBS,
     script,
@@ -44,11 +44,13 @@ import qualified Ledger.Typed.Scripts                as Scripts
 import           Ledger.Typed.Scripts.Validators
 import           Ledger.Value                        as Value
 import           Plutus.Contract                     as Contract
+import qualified Plutus.Contract                     as Scripts
 import           Plutus.Contract.Schema              (Input)
 import           Plutus.Trace.Emulator               as Emulator
 import qualified Plutus.V1.Ledger.Api                as Plutus.Api
 import qualified Plutus.V1.Ledger.Scripts            as Plutus
 import qualified Plutus.V2.Ledger.Api                as PlutusV2.Api
+import qualified Plutus.Script.Utils.V1.Scripts      as PSU.V1
 import qualified PlutusTx
 import qualified PlutusTx.Builtins                   as BI
 import           PlutusTx.Prelude                    as P hiding
@@ -68,67 +70,37 @@ data InputType = RegularInput | ReferenceInput | BothInputTypes
 
 PlutusTx.unstableMakeIsData ''InputType
 
-data ExpInputDatum = ExpInputDatum
-        {txOutRef :: TxOutRef,
-        expDatum  :: PlutusV2.Api.OutputDatum,
-        inputType :: InputType
+data ExpRefScript = ExpRefScript
+        { txOutRef  :: TxOutRef,
+          expDatum  :: Maybe ScriptHash,
+          inputType :: InputType
         }
     deriving (Show)
 
-PlutusTx.unstableMakeIsData ''ExpInputDatum
-
-{-
-   Define datum to use
--}
-
-data SomeData = SomeData {name :: BuiltinByteString, age :: Integer, shopping :: [BuiltinByteString]}
-
-PlutusTx.unstableMakeIsData ''SomeData
-
-someData = SomeData {name = "cats", age = 42, shopping = ["apple", "tomato", "cheese"]}
-
-fortyTwo = 42 :: Integer
-
-myDatum = Datum $ PlutusTx.dataToBuiltinData $ PlutusTx.toData someData
-
-myDatumHash = datumHash myDatum
+PlutusTx.unstableMakeIsData ''ExpRefScript
 
 {-
    Redeemers
 -}
 
-redeemerDatum = ExpInputDatum { txOutRef  = TxOutRef {txOutRefId = "b204b4554a827178b48275629e5eac9bde4f5350badecfcd108d87446f00bf26", txOutRefIdx = 0}
-                              , expDatum  = PlutusV2.Api.OutputDatum myDatum
-                              , inputType = RegularInput
-                              }
+redeemer = ExpRefScript { txOutRef  = TxOutRef {txOutRefId = "b204b4554a827178b48275629e5eac9bde4f5350badecfcd108d87446f00bf26", txOutRefIdx = 0}
+                             , expDatum  = policyHash
+                             , inputType = RegularInput
+                             }
 
-redeemerDatumHash = ExpInputDatum { txOutRef  = TxOutRef {txOutRefId = "b204b4554a827178b48275629e5eac9bde4f5350badecfcd108d87446f00bf26", txOutRefIdx = 0}
-                                  , expDatum  = PlutusV2.Api.OutputDatumHash myDatumHash
-                                  , inputType = RegularInput
-                                  }
-
-printRedeemerDatum = print $ "Redeemer Datum: " <> A.encode (scriptDataToJson ScriptDataJsonDetailedSchema $ fromPlutusData $ Plutus.Api.toData redeemerDatum)
-
-printRedeemerDatumHash = print $ "Redeemer Datum Hash: " <> A.encode (scriptDataToJson ScriptDataJsonDetailedSchema $ fromPlutusData $ Plutus.Api.toData redeemerDatumHash)
+printRedeemer = print $ "Redeemer Datum: " <> A.encode (scriptDataToJson ScriptDataJsonDetailedSchema $ fromPlutusData $ Plutus.Api.toData redeemerDatum)
 
 {-
    The validator script
 -}
 
 {-# INLINEABLE expectedInlinePolicy #-}
-expectedInlinePolicy :: ExpInputDatum -> ScriptContext -> Bool
-expectedInlinePolicy expInline ctx =
-    case expInline of
-        ExpInputDatum _ PlutusV2.Api.NoOutputDatum RegularInput   -> noDatumHashInInput
-        ExpInputDatum _ PlutusV2.Api.NoOutputDatum ReferenceInput -> noDatumHashInRefInput
-        ExpInputDatum _ PlutusV2.Api.NoOutputDatum BothInputTypes -> noDatumHashInInput && noDatumHashInRefInput
-
-        ExpInputDatum _ (PlutusV2.Api.OutputDatum _) _ -> traceError "OutputDatum is not implemented"
-
-        ExpInputDatum _ (PlutusV2.Api.OutputDatumHash dh) RegularInput   -> datumHashInInput dh
-        ExpInputDatum _ (PlutusV2.Api.OutputDatumHash dh) ReferenceInput -> traceIfFalse "Expected reference input to have datum hash but it doesn't" (datumHashInRefInput dh)
-        ExpInputDatum _ (PlutusV2.Api.OutputDatumHash dh) BothInputTypes -> traceIfFalse "Expected regular input to have datum hash but it doesn't" (datumHashInInput dh) &&
-                                                                            traceIfFalse "Expected reference input to have datum hash but it doesn't" (datumHashInRefInput dh)
+expectedInlinePolicy :: ExpRefScript -> ScriptContext -> Bool
+expectedInlinePolicy expRefScript ctx =
+    case expRefScript of
+        ExpRefScript _ s RegularInput   -> noDatumHashInInput
+        ExpRefScript _ s ReferenceInput -> noDatumHashInInput
+        ExpRefScript _ s BothInputTypes -> noDatumHashInInput
         _ -> traceError "Unexpected case"
     where
         info :: TxInfo
@@ -156,6 +128,9 @@ policy = Plutus.mkMintingPolicyScript $$(PlutusTx.compile [||wrap||])
     where
         wrap = Scripts.wrapMintingPolicy expectedInlinePolicy
 
+policyHash :: ValidatorHash
+policyHash = PSU.V1.mintingPolicyHash policy
+
 {-
     As a Script
 -}
@@ -178,7 +153,7 @@ serialisedScript :: PlutusScript PlutusScriptV1
 serialisedScript = PlutusScriptSerialised scriptSBS
 
 writeSerialisedScript :: IO ()
-writeSerialisedScript = void $ writeFileTextEnvelope "check-txo-inline.plutus" Nothing serialisedScript
+writeSerialisedScript = void $ writeFileTextEnvelope "check-datum.plutus" Nothing serialisedScript
 
 {-
 

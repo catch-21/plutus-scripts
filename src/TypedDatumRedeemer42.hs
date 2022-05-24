@@ -36,6 +36,7 @@ import           Plutus.Contract                  as Contract
 import           Plutus.Trace.Emulator            as Emulator
 import qualified Plutus.V1.Ledger.Api             as Ledger.Api
 import qualified Plutus.V1.Ledger.Scripts         as Plutus
+import qualified Plutus.Script.Utils.V1           as PSU.V1
 import qualified PlutusTx
 import qualified PlutusTx.Builtins                as BI
 import           PlutusTx.Prelude                 as P hiding (Semigroup (..),
@@ -73,7 +74,7 @@ typedValidator =
         wrap = Scripts.wrapValidator @Integer @Integer
 
 datumRedeemer42Validator :: Plutus.Validator
-datumRedeemer42Validator = Scripts.validatorScript typedValidator
+datumRedeemer42Validator = PSU.V1.validatorScript typedValidator
 
 {-
     As a Script
