@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NamedFieldPuns        #-}
 {-# LANGUAGE NoImplicitPrelude     #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE RankNTypes            #-}
@@ -24,13 +25,13 @@ module CheckReferenceScriptPolicy
   )
 where
 
-import           Cardano.Api                         (writeFileTextEnvelope)
-import           Cardano.Api.Shelley                 (PlutusScript (..),
-                                                      PlutusScriptV1,
+import           Cardano.Api                         (PlutusScript (..),
+                                                      PlutusScriptV2,
                                                       ScriptDataJsonSchema (ScriptDataJsonDetailedSchema),
-                                                      fromPlutusData,
                                                       scriptDataToJson,
-                                                      toPlutusData)
+                                                      writeFileTextEnvelope)
+import           Cardano.Api.Shelley                 (PlutusScript (PlutusScriptSerialised),
+                                                      fromPlutusData)
 import           Codec.Serialise
 import           Data.Aeson                          as A
 import qualified Data.ByteString.Lazy                as LBS
@@ -46,11 +47,12 @@ import           Ledger.Value                        as Value
 import           Plutus.Contract                     as Contract
 import qualified Plutus.Contract                     as Scripts
 import           Plutus.Contract.Schema              (Input)
+import qualified Plutus.Script.Utils.V2.Scripts      as PSU.V2
 import           Plutus.Trace.Emulator               as Emulator
-import qualified Plutus.V1.Ledger.Api                as Plutus.Api
-import qualified Plutus.V1.Ledger.Scripts            as Plutus
-import qualified Plutus.V2.Ledger.Api                as PlutusV2.Api
-import qualified Plutus.Script.Utils.V1.Scripts      as PSU.V1
+import           Plutus.V2.Ledger.Api                (toData)
+import qualified Plutus.V2.Ledger.Api                as PlutusV2
+import qualified Plutus.V2.Ledger.Contexts           as PlutusV2
+import           PlutusTx                            (CompiledCode)
 import qualified PlutusTx
 import qualified PlutusTx.Builtins                   as BI
 import           PlutusTx.Prelude                    as P hiding
@@ -71,9 +73,9 @@ data InputType = RegularInput | ReferenceInput | BothInputTypes
 PlutusTx.unstableMakeIsData ''InputType
 
 data ExpRefScript = ExpRefScript
-        { txOutRef  :: TxOutRef,
-          expDatum  :: Maybe ScriptHash,
-          inputType :: InputType
+        { txOutRef     :: TxOutRef,
+          expRefScript :: Maybe ScriptHash,
+          inputType    :: InputType
         }
     deriving (Show)
 
@@ -84,59 +86,77 @@ PlutusTx.unstableMakeIsData ''ExpRefScript
 -}
 
 redeemer = ExpRefScript { txOutRef  = TxOutRef {txOutRefId = "b204b4554a827178b48275629e5eac9bde4f5350badecfcd108d87446f00bf26", txOutRefIdx = 0}
-                             , expDatum  = policyHash
-                             , inputType = RegularInput
-                             }
+                        , expRefScript  = Just policyScriptHash -- this policy's script hash
+                        , inputType = RegularInput
+                        }
 
-printRedeemer = print $ "Redeemer Datum: " <> A.encode (scriptDataToJson ScriptDataJsonDetailedSchema $ fromPlutusData $ Plutus.Api.toData redeemerDatum)
+printRedeemer = print $ "Redeemer Datum: " <> A.encode (scriptDataToJson ScriptDataJsonDetailedSchema $ fromPlutusData $ toData redeemer)
 
 {-
    The validator script
 -}
 
-{-# INLINEABLE expectedInlinePolicy #-}
-expectedInlinePolicy :: ExpRefScript -> ScriptContext -> Bool
-expectedInlinePolicy expRefScript ctx =
+{-# INLINEABLE expectedRefScriptPolicy #-}
+expectedRefScriptPolicy :: ExpRefScript -> PlutusV2.ScriptContext -> Bool
+expectedRefScriptPolicy expRefScript ctx =
     case expRefScript of
-        ExpRefScript _ s RegularInput   -> noDatumHashInInput
-        ExpRefScript _ s ReferenceInput -> noDatumHashInInput
-        ExpRefScript _ s BothInputTypes -> noDatumHashInInput
-        _ -> traceError "Unexpected case"
+        ExpRefScript _ Nothing RegularInput     -> noReferenceScriptInInput
+        ExpRefScript _ Nothing ReferenceInput   -> noReferenceScriptInRefInput
+        ExpRefScript _ Nothing BothInputTypes   -> noReferenceScriptInInput && noReferenceScriptInRefInput
+
+        ExpRefScript _ sh@(Just _) RegularInput   -> referenceScriptInInput sh
+        ExpRefScript _ sh@(Just _) ReferenceInput -> referenceScriptInRefInput sh
+        ExpRefScript _ sh@(Just _) BothInputTypes -> referenceScriptInInput sh && referenceScriptInRefInput sh
+
+        _                                       -> traceError "Unexpected case"
     where
-        info :: TxInfo
-        info = scriptContextTxInfo ctx
+        info :: PlutusV2.TxInfo
+        info = PlutusV2.scriptContextTxInfo ctx
 
         fromJust' :: BuiltinString -> Maybe a -> a
         fromJust' err Nothing = traceError err
         fromJust' _ (Just x)  = x
 
-        findTxIn :: TxInInfo
-        findTxIn = fromJust' "txIn doesn't exist" $ findTxInByTxOutRef (txOutRef expInline) info
+        findTxIn :: PlutusV2.TxInInfo
+        findTxIn = fromJust' "txIn doesn't exist" $ PlutusV2.findTxInByTxOutRef (txOutRef expRefScript) info
 
-        noDatumHashInInput = traceIfFalse "Expected regular input to have no datum hash but it does" $ P.isNothing $ txOutDatumHash $ txInInfoResolved findTxIn
-        datumHashInInput dh = traceIfFalse "Expected regular input to have datum hash but it doesn't" $ Just dh P.== txOutDatumHash (txInInfoResolved findTxIn)
+        findRefTxInByTxOutRef :: TxOutRef -> PlutusV2.TxInfo -> Maybe PlutusV2.TxInInfo -- similar to findTxInByTxOutRef, should be a built-in context
+        findRefTxInByTxOutRef outRef PlutusV2.TxInfo{txInfoReferenceInputs} =
+            find (\PlutusV2.TxInInfo{txInInfoOutRef} -> txInInfoOutRef == outRef) txInfoReferenceInputs
 
-        noDatumHashInRefInput = traceError "noDatumHashInRefInput not implemented" -- traceIfFalse "Expected reference input to have no datum hash but it does"
-        datumHashInRefInput dh = traceError "datumHashInRefInput not implemented"
+        findRefTxIn :: PlutusV2.TxInInfo
+        findRefTxIn = fromJust' "txRefIn doesn't exist" $ findRefTxInByTxOutRef (txOutRef expRefScript) info
+
+        noReferenceScriptInInput  = traceIfFalse "Expected regular input to have no reference script" $ P.isNothing $ PlutusV2.txOutReferenceScript $ PlutusV2.txInInfoResolved findTxIn
+        referenceScriptInInput sh = traceIfFalse "Expected regular input to have reference script"    $ sh == PlutusV2.txOutReferenceScript (PlutusV2.txInInfoResolved findTxIn)
+
+        noReferenceScriptInRefInput  = traceIfFalse "Expected reference input to have no reference script" $ P.isNothing $ PlutusV2.txOutReferenceScript $ PlutusV2.txInInfoResolved findRefTxIn
+        referenceScriptInRefInput sh = traceIfFalse "Expected regular input to have reference script"    $ sh == PlutusV2.txOutReferenceScript (PlutusV2.txInInfoResolved findRefTxIn)
 
 {-
     As a Minting Policy
 -}
 
-policy :: Scripts.MintingPolicy
-policy = Plutus.mkMintingPolicyScript $$(PlutusTx.compile [||wrap||])
+compiledCode :: CompiledCode (BuiltinData -> BuiltinData -> ())
+compiledCode = $$(PlutusTx.compile [|| wrap ||])
     where
-        wrap = Scripts.wrapMintingPolicy expectedInlinePolicy
+        wrap = PSU.V2.mkUntypedMintingPolicy expectedRefScriptPolicy
 
-policyHash :: ValidatorHash
-policyHash = PSU.V1.mintingPolicyHash policy
+policyScriptHash :: ScriptHash
+policyScriptHash = scriptHash $ fromCompiledCode compiledCode
+
+policy :: Scripts.MintingPolicy
+policy = PlutusV2.mkMintingPolicyScript compiledCode
+
+policyHash :: MintingPolicyHash
+policyHash = PSU.V2.mintingPolicyHash policy
 
 {-
     As a Script
 -}
 
-script :: Plutus.Script
-script = Plutus.unMintingPolicyScript policy
+script :: PlutusV2.Script
+script = PlutusV2.unMintingPolicyScript policy
 
 {-
     As a Short Byte String
@@ -149,11 +169,11 @@ scriptSBS = SBS.toShort . LBS.toStrict $ serialise script
     As a Serialised Script
 -}
 
-serialisedScript :: PlutusScript PlutusScriptV1
+serialisedScript :: PlutusScript PlutusScriptV2
 serialisedScript = PlutusScriptSerialised scriptSBS
 
 writeSerialisedScript :: IO ()
-writeSerialisedScript = void $ writeFileTextEnvelope "check-datum.plutus" Nothing serialisedScript
+writeSerialisedScript = void $ writeFileTextEnvelope "check-reference-script.plutus" Nothing serialisedScript
 
 {-
 

@@ -17,7 +17,7 @@ module UntypedHelloWorld
 where
 
 import           Cardano.Api                     (writeFileTextEnvelope)
-import           Cardano.Api.Shelley             (PlutusScript (..),
+import           Cardano.Api.Shelley             (PlutusScript (PlutusScriptSerialised),
                                                   PlutusScriptV1)
 import           Codec.Serialise
 import qualified Data.ByteString.Lazy            as LBS
@@ -29,12 +29,14 @@ import           Data.Void                       (Void)
 import           Ledger
 import           Ledger.Ada                      as Ada
 import           Ledger.Constraints              as Constraints
-import           Ledger.Typed.Scripts.Validators
+import qualified Ledger.Typed.Scripts            as Ledger
+import           Ledger.Typed.Scripts.Validators as Scripts
 import           Plutus.Contract                 as Contract
+import qualified Plutus.Script.Utils.V1.Address  as PSU.V1
+import qualified Plutus.Script.Utils.V1.Scripts  as PSU.V1
 import           Plutus.Trace.Emulator           as Emulator
 import qualified Plutus.V1.Ledger.Api            as Ledger.Api
 import qualified Plutus.V1.Ledger.Scripts        as Plutus
-import qualified Plutus.Script.Utils.V1          as PSU.V1
 import qualified PlutusTx
 import qualified PlutusTx.Builtins               as BI
 import           PlutusTx.Prelude                as P hiding (Semigroup (..),
@@ -90,11 +92,11 @@ writeHelloWorldScript = void $ writeFileTextEnvelope "untyped-helloWorld.plutus"
 -}
 
 scrAddress :: Ledger.Address
-scrAddress = plutusV1ScriptAddress helloWorldValidator
+scrAddress = PSU.V1.mkValidatorAddress helloWorldValidator
 --scrAddress = Ledger.scriptHashAddress valHash
 
 valHash :: PSU.V1.ValidatorHash
-valHash = validatorHash $ unsafeMkTypedValidator helloWorldValidator -- TODO: use Plutus.Script.Utils.V1.Scripts.validatorHash from plutus-script-utils when merged into next-node branch
+valHash = PSU.V1.validatorHash helloWorldValidator -- TODO: use Plutus.Script.Utils.V1.Scripts.validatorHash from plutus-script-utils when merged into next-node branch
 
 helloWorldContract :: Contract () Empty Text ()
 helloWorldContract = do

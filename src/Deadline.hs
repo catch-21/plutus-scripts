@@ -18,36 +18,35 @@ module Deadline
   )
 where
 
-import           Cardano.Api                      (writeFileTextEnvelope)
-import           Cardano.Api.Shelley              (PlutusScript (..),
-                                                   PlutusScriptV1)
+import           Cardano.Api                     (writeFileTextEnvelope)
+import           Cardano.Api.Shelley             (PlutusScript (PlutusScriptSerialised),
+                                                  PlutusScriptV1)
 import           Codec.Serialise
-import           Control.Monad.Freer.Extras       as Extras
-import qualified Data.ByteString.Lazy             as LBS
-import qualified Data.ByteString.Short            as SBS
-import           Data.Functor                     (void)
-import           Data.Map                         as Map
-import           Data.Text                        (Text)
-import           Data.Void                        (Void)
+import           Control.Monad.Freer.Extras      as Extras
+import qualified Data.ByteString.Lazy            as LBS
+import qualified Data.ByteString.Short           as SBS
+import           Data.Functor                    (void)
+import           Data.Map                        as Map
+import           Data.Text                       (Text)
+import           Data.Void                       (Void)
 import           Ledger
-import           Ledger.Ada                       as Ada
-import           Ledger.Constraints               as Constraints
-import           Ledger.Constraints.TxConstraints as TxConstraints
-import qualified Ledger.Typed.Scripts             as Ledger
-import qualified Ledger.Typed.Scripts             as Scripts
-import           Ledger.Typed.Scripts.Validators
-import           Plutus.Contract                  as Contract
-import qualified Plutus.Script.Utils.V1           as PSU.V1
-import           Plutus.Trace.Emulator            as Emulator
-import qualified Plutus.V1.Ledger.Api             as Ledger.Api
-import qualified Plutus.V1.Ledger.Scripts         as Plutus
+import           Ledger.Ada                      as Ada
+import           Ledger.Constraints              as Constraints
+import           Ledger.Typed.Scripts.Validators as Scripts
+import           Plutus.Contract                 as Contract
+import qualified Plutus.Script.Utils.V1.Scripts  as PSU.V1
+import           Plutus.Trace.Emulator           as Emulator (EmulatorTrace,
+                                                              activateContractWallet,
+                                                              runEmulatorTraceIO,
+                                                              waitNSlots)
+import qualified Plutus.V1.Ledger.Api            as Ledger.Api
+import qualified Plutus.V1.Ledger.Scripts        as Plutus
 import qualified PlutusTx
-import qualified PlutusTx.Builtins                as BI
-import           PlutusTx.Prelude                 as P hiding (Semigroup (..),
-                                                        unless, (.))
-import           Prelude                          (IO, Semigroup (..),
-                                                   Show (..), String, putStrLn,
-                                                   (.))
+import qualified PlutusTx.Builtins               as BI
+import           PlutusTx.Prelude                as P hiding (Semigroup (..),
+                                                       unless, (.))
+import           Prelude                         (IO, Semigroup (..), Show (..),
+                                                  String, putStrLn, (.))
 import           Wallet.Emulator.Wallet
 
 
@@ -118,16 +117,15 @@ mkValidator dl _ _ ctx = traceError (decodeUtf8 (disp range "")) -- to dl `conta
     As a validator
 -}
 
-instance Scripts.ValidatorTypes POSIXTime where
-    type instance RedeemerType POSIXTime = ()
-    type instance DatumType POSIXTime = ()
+data DeadlineValidator
+instance Scripts.ValidatorTypes DeadlineValidator
 
-typedValidator :: POSIXTime -> Scripts.TypedValidator POSIXTime
-typedValidator = Scripts.mkTypedValidatorParam @POSIXTime
+typedValidator :: POSIXTime -> Scripts.TypedValidator DeadlineValidator
+typedValidator = Scripts.mkTypedValidatorParam @DeadlineValidator
     $$(PlutusTx.compile [||mkValidator||])
     $$(PlutusTx.compile [|| wrap ||])
     where
-        wrap = PSU.V1.wrapValidator
+        wrap = PSU.V1.mkUntypedValidator
 
 {-
     As a Script
@@ -162,7 +160,7 @@ scrAddress = Scripts.validatorAddress $ typedValidator deadline
 --scrAddress = Ledger.scriptHashAddress valHash
 
 valHash :: PSU.V1.ValidatorHash
-valHash = validatorHash $ typedValidator deadline
+valHash = Scripts.validatorHash $ typedValidator deadline
 
 contract :: Contract () Empty Text ()
 contract = do

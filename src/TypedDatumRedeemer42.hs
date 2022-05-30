@@ -17,8 +17,9 @@ module TypedDatumRedeemer42
 where
 
 import           Cardano.Api                      (writeFileTextEnvelope)
-import           Cardano.Api.Shelley              (PlutusScript (..),
+import           Cardano.Api.Shelley              (PlutusScript (PlutusScriptSerialised),
                                                    PlutusScriptV1)
+
 import           Codec.Serialise
 import qualified Data.ByteString.Lazy             as LBS
 import qualified Data.ByteString.Short            as SBS
@@ -30,13 +31,13 @@ import           Ledger
 import           Ledger.Ada                       as Ada
 import           Ledger.Constraints               as Constraints
 import           Ledger.Constraints.TxConstraints as TxConstraints
+import           Ledger.Scripts                   (ValidatorHash)
 import qualified Ledger.Typed.Scripts             as Scripts
 import           Ledger.Typed.Scripts.Validators
 import           Plutus.Contract                  as Contract
+import qualified Plutus.Script.Utils.V1.Scripts   as PSU.V1
 import           Plutus.Trace.Emulator            as Emulator
-import qualified Plutus.V1.Ledger.Api             as Ledger.Api
 import qualified Plutus.V1.Ledger.Scripts         as Plutus
-import qualified Plutus.Script.Utils.V1           as PSU.V1
 import qualified PlutusTx
 import qualified PlutusTx.Builtins                as BI
 import           PlutusTx.Prelude                 as P hiding (Semigroup (..),
@@ -70,11 +71,11 @@ typedValidator =
     Scripts.mkTypedValidator @Typed
     $$(PlutusTx.compile [||mkValidator||])
     $$(PlutusTx.compile [||wrap||])
-        where
-        wrap = Scripts.wrapValidator @Integer @Integer
+    where
+        wrap = PSU.V1.mkUntypedValidator
 
 datumRedeemer42Validator :: Plutus.Validator
-datumRedeemer42Validator = PSU.V1.validatorScript typedValidator
+datumRedeemer42Validator = validatorScript typedValidator
 
 {-
     As a Script
@@ -108,8 +109,8 @@ scrAddress :: Ledger.Address
 scrAddress = Scripts.validatorAddress typedValidator
 --scrAddress = Ledger.scriptHashAddress valHash
 
-valHash :: ValidatorHash
-valHash = validatorHash typedValidator
+valHash :: PSU.V1.ValidatorHash
+valHash = Scripts.validatorHash typedValidator
 
 datumRedeemer42Contract :: Contract () Empty Text ()
 datumRedeemer42Contract = do

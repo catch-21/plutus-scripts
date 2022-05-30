@@ -15,7 +15,8 @@
 {-# LANGUAGE TypeOperators         #-}
 
 module CheckDatumPolicy
-  ( printRedeemer,
+  ( printScriptData,
+    myDatum,
     redeemerDatum,
     redeemerDatumHash,
     redeemerNoOutputDatum,
@@ -48,8 +49,8 @@ import           Plutus.Contract                     as Contract
 import           Plutus.Contract.Schema              (Input)
 import qualified Plutus.Script.Utils.V2.Scripts      as PSU.V2
 import           Plutus.Trace.Emulator               as Emulator
-import qualified Plutus.V2.Ledger.Api                as PlutusV2.Api
-import qualified Plutus.V2.Ledger.Contexts           as PlutusV2.Contexts
+import qualified Plutus.V2.Ledger.Api                as PlutusV2
+import qualified Plutus.V2.Ledger.Contexts           as PlutusV2
 import           Plutus.V2.Ledger.Tx
 import qualified PlutusTx
 import qualified PlutusTx.Builtins                   as BI
@@ -71,8 +72,8 @@ data InputType = RegularInput | ReferenceInput | BothInputTypes
 PlutusTx.unstableMakeIsData ''InputType
 
 data ExpInputDatum = ExpInputDatum
-        { txOutRef  :: PlutusV2.Api.TxOutRef,
-          expDatum  :: PlutusV2.Api.OutputDatum,
+        { txOutRef  :: PlutusV2.TxOutRef,
+          expDatum  :: PlutusV2.OutputDatum,
           inputType :: InputType
         }
     deriving (Show)
@@ -91,7 +92,7 @@ someData = SomeData {name = "cats", age = 42, shopping = ["apple", "tomato", "ch
 
 fortyTwo = 42 :: Integer
 
-myDatum = PlutusV2.Api.Datum $ PlutusTx.dataToBuiltinData $ PlutusTx.toData someData
+myDatum = PlutusV2.Datum $ PlutusTx.dataToBuiltinData $ PlutusTx.toData someData
 
 myDatumHash = PSU.V2.datumHash myDatum
 
@@ -99,85 +100,85 @@ myDatumHash = PSU.V2.datumHash myDatum
    Redeemers
 -}
 
-redeemerDatum = ExpInputDatum { txOutRef  = PlutusV2.Api.TxOutRef {txOutRefId = "b204b4554a827178b48275629e5eac9bde4f5350badecfcd108d87446f00bf26", txOutRefIdx = 0}
-                              , expDatum  = PlutusV2.Api.OutputDatum myDatum
+redeemerDatum = ExpInputDatum { txOutRef  = PlutusV2.TxOutRef {txOutRefId = "b204b4554a827178b48275629e5eac9bde4f5350badecfcd108d87446f00bf26", txOutRefIdx = 0}
+                              , expDatum  = PlutusV2.OutputDatum myDatum
                               , inputType = RegularInput
                               }
 
-redeemerDatumHash = ExpInputDatum { txOutRef  = PlutusV2.Api.TxOutRef {txOutRefId = "b204b4554a827178b48275629e5eac9bde4f5350badecfcd108d87446f00bf26", txOutRefIdx = 0}
-                                  , expDatum  = PlutusV2.Api.OutputDatumHash myDatumHash
+redeemerDatumHash = ExpInputDatum { txOutRef  = PlutusV2.TxOutRef {txOutRefId = "b204b4554a827178b48275629e5eac9bde4f5350badecfcd108d87446f00bf26", txOutRefIdx = 0}
+                                  , expDatum  = PlutusV2.OutputDatumHash myDatumHash
                                   , inputType = RegularInput
                                   }
 
-redeemerNoOutputDatum = ExpInputDatum { txOutRef  = PlutusV2.Api.TxOutRef {txOutRefId = "b204b4554a827178b48275629e5eac9bde4f5350badecfcd108d87446f00bf26", txOutRefIdx = 0}
-                                  , expDatum  = PlutusV2.Api.NoOutputDatum
+redeemerNoOutputDatum = ExpInputDatum { txOutRef  = PlutusV2.TxOutRef {txOutRefId = "b204b4554a827178b48275629e5eac9bde4f5350badecfcd108d87446f00bf26", txOutRefIdx = 0}
+                                  , expDatum  = PlutusV2.NoOutputDatum
                                   , inputType = BothInputTypes
                                   }
 
-printRedeemer d = print $ "Redeemer: " <> A.encode (scriptDataToJson ScriptDataJsonDetailedSchema $ fromPlutusData $ PlutusV2.Api.toData d)
+printScriptData d = print $ "Script Data: " <> A.encode (scriptDataToJson ScriptDataJsonDetailedSchema $ fromPlutusData $ PlutusV2.toData d)
 
 {-
    The validator script
 -}
 
 {-# INLINEABLE expectedInlinePolicy #-}
-expectedInlinePolicy :: ExpInputDatum -> PlutusV2.Api.ScriptContext -> Bool
+expectedInlinePolicy :: ExpInputDatum -> PlutusV2.ScriptContext -> Bool
 expectedInlinePolicy expInline ctx =
     case expInline of
-        ExpInputDatum _ PlutusV2.Api.NoOutputDatum RegularInput   -> noOutputDatumInInput
-        ExpInputDatum _ PlutusV2.Api.NoOutputDatum ReferenceInput -> noOutputDatumInRefInput
-        ExpInputDatum _ PlutusV2.Api.NoOutputDatum BothInputTypes -> noOutputDatumInInput && noOutputDatumInRefInput
+        ExpInputDatum _ PlutusV2.NoOutputDatum RegularInput   -> noOutputDatumInInput
+        ExpInputDatum _ PlutusV2.NoOutputDatum ReferenceInput -> noOutputDatumInRefInput
+        ExpInputDatum _ PlutusV2.NoOutputDatum BothInputTypes -> noOutputDatumInInput && noOutputDatumInRefInput
 
-        ExpInputDatum _ (PlutusV2.Api.OutputDatum d) RegularInput   -> datumInInput    d
-        ExpInputDatum _ (PlutusV2.Api.OutputDatum d) ReferenceInput -> datumInRefInput d
-        ExpInputDatum _ (PlutusV2.Api.OutputDatum d) BothInputTypes -> datumInInput    d && datumInRefInput d
+        ExpInputDatum _ (PlutusV2.OutputDatum d) RegularInput   -> datumInInput    d
+        ExpInputDatum _ (PlutusV2.OutputDatum d) ReferenceInput -> datumInRefInput d
+        ExpInputDatum _ (PlutusV2.OutputDatum d) BothInputTypes -> datumInInput    d && datumInRefInput d
 
-        ExpInputDatum _ (PlutusV2.Api.OutputDatumHash dh) RegularInput   -> datumHashInInput    dh
-        ExpInputDatum _ (PlutusV2.Api.OutputDatumHash dh) ReferenceInput -> datumHashInRefInput dh
-        ExpInputDatum _ (PlutusV2.Api.OutputDatumHash dh) BothInputTypes -> datumHashInInput    dh && datumHashInRefInput dh
+        ExpInputDatum _ (PlutusV2.OutputDatumHash dh) RegularInput   -> datumHashInInput    dh
+        ExpInputDatum _ (PlutusV2.OutputDatumHash dh) ReferenceInput -> datumHashInRefInput dh
+        ExpInputDatum _ (PlutusV2.OutputDatumHash dh) BothInputTypes -> datumHashInInput    dh && datumHashInRefInput dh
 
         _ -> traceError "Unexpected case"
     where
-        info :: PlutusV2.Api.TxInfo
-        info = PlutusV2.Api.scriptContextTxInfo ctx
+        info :: PlutusV2.TxInfo
+        info = PlutusV2.scriptContextTxInfo ctx
 
         fromJust' :: BuiltinString -> Maybe a -> a -- should be built-in
         fromJust' err Nothing = traceError err
         fromJust' _ (Just x)  = x
 
-        findTxIn :: PlutusV2.Api.TxInInfo
-        findTxIn = fromJust' "txIn doesn't exist" $ PlutusV2.Contexts.findTxInByTxOutRef (txOutRef expInline) info
+        findTxIn :: PlutusV2.TxInInfo
+        findTxIn = fromJust' "txIn doesn't exist" $ PlutusV2.findTxInByTxOutRef (txOutRef expInline) info
 
-        findRefTxInByTxOutRef :: TxOutRef -> PlutusV2.Contexts.TxInfo -> Maybe PlutusV2.Contexts.TxInInfo -- similar to findTxInByTxOutRef, should be a built-in context
-        findRefTxInByTxOutRef outRef PlutusV2.Contexts.TxInfo{txInfoReferenceInputs} =
-            find (\PlutusV2.Contexts.TxInInfo{txInInfoOutRef} -> txInInfoOutRef == outRef) txInfoReferenceInputs
+        findRefTxInByTxOutRef :: TxOutRef -> PlutusV2.TxInfo -> Maybe PlutusV2.TxInInfo -- similar to findTxInByTxOutRef, should be a built-in context
+        findRefTxInByTxOutRef outRef PlutusV2.TxInfo{txInfoReferenceInputs} =
+            find (\PlutusV2.TxInInfo{txInInfoOutRef} -> txInInfoOutRef == outRef) txInfoReferenceInputs
 
-        findRefTxIn :: PlutusV2.Api.TxInInfo
+        findRefTxIn :: PlutusV2.TxInInfo
         findRefTxIn = fromJust' "txRefIn doesn't exist" $ findRefTxInByTxOutRef (txOutRef expInline) info
 
-        noOutputDatumInInput = traceIfFalse "Expected regular input to have no output datum" $ PlutusV2.Api.NoOutputDatum      == PlutusV2.Contexts.txOutDatum (PlutusV2.Contexts.txInInfoResolved findTxIn)
-        datumInInput d       = traceIfFalse "Expected regular input to have datum hash"      $ PlutusV2.Api.OutputDatum d      == PlutusV2.Contexts.txOutDatum (PlutusV2.Contexts.txInInfoResolved findTxIn)
-        datumHashInInput dh  = traceIfFalse "Expected regular input to have datum hash"      $ PlutusV2.Api.OutputDatumHash dh == PlutusV2.Contexts.txOutDatum (PlutusV2.Contexts.txInInfoResolved findTxIn)
+        noOutputDatumInInput = traceIfFalse "Expected regular input to have no output datum" $ PlutusV2.NoOutputDatum      == PlutusV2.txOutDatum (PlutusV2.txInInfoResolved findTxIn)
+        datumInInput d       = traceIfFalse "Expected regular input to have datum"           $ PlutusV2.OutputDatum d      == PlutusV2.txOutDatum (PlutusV2.txInInfoResolved findTxIn)
+        datumHashInInput dh  = traceIfFalse "Expected regular input to have datum hash"      $ PlutusV2.OutputDatumHash dh == PlutusV2.txOutDatum (PlutusV2.txInInfoResolved findTxIn)
 
-        noOutputDatumInRefInput = traceIfFalse "Expected reference input to have no output datum" $ PlutusV2.Api.NoOutputDatum      == PlutusV2.Contexts.txOutDatum (PlutusV2.Contexts.txInInfoResolved findRefTxIn)
-        datumInRefInput d       = traceIfFalse "Expected regular input to have datum hash"        $ PlutusV2.Api.OutputDatum d      == PlutusV2.Contexts.txOutDatum (PlutusV2.Contexts.txInInfoResolved findRefTxIn)
-        datumHashInRefInput dh  = traceIfFalse "Expected regular input to have datum hash"        $ PlutusV2.Api.OutputDatumHash dh == PlutusV2.Contexts.txOutDatum (PlutusV2.Contexts.txInInfoResolved findRefTxIn)
+        noOutputDatumInRefInput = traceIfFalse "Expected reference input to have no output datum" $ PlutusV2.NoOutputDatum      == PlutusV2.txOutDatum (PlutusV2.txInInfoResolved findRefTxIn)
+        datumInRefInput d       = traceIfFalse "Expected regular input to have datum"             $ PlutusV2.OutputDatum d      == PlutusV2.txOutDatum (PlutusV2.txInInfoResolved findRefTxIn)
+        datumHashInRefInput dh  = traceIfFalse "Expected regular input to have datum hash"        $ PlutusV2.OutputDatumHash dh == PlutusV2.txOutDatum (PlutusV2.txInInfoResolved findRefTxIn)
 
 {-
     As a Minting Policy
 -}
 
 policy :: Scripts.MintingPolicy
-policy = PlutusV2.Api.mkMintingPolicyScript $$(PlutusTx.compile [|| wrap ||])
-    where
-        wrap = PSU.V2.mkUntypedMintingPolicy expectedInlinePolicy
+policy = PlutusV2.mkMintingPolicyScript $$(PlutusTx.compile [|| wrap ||])
+     where
+         wrap = PSU.V2.mkUntypedMintingPolicy expectedInlinePolicy
 
 {-
     As a Script
 -}
 
-script :: PlutusV2.Api.Script
-script = PlutusV2.Api.unMintingPolicyScript policy
+script :: PlutusV2.Script
+script = PlutusV2.unMintingPolicyScript policy
 
 {-
     As a Short Byte String
