@@ -15,7 +15,8 @@
 {-# LANGUAGE TypeOperators         #-}
 
 module CheckDatumPolicy
-  ( printScriptData,
+  ( printScriptHash,
+    printScriptData,
     myDatum,
     redeemerDatum,
     redeemerDatumHash,
@@ -92,7 +93,12 @@ someData = SomeData {name = "cats", age = 42, shopping = ["apple", "tomato", "ch
 
 fortyTwo = 42 :: Integer
 
-myDatum = PlutusV2.Datum $ PlutusTx.dataToBuiltinData $ PlutusTx.toData someData
+devil = 666 :: Integer
+
+text :: BuiltinByteString
+text = "check_ref_inputs"
+
+myDatum = PlutusV2.Datum $ PlutusTx.dataToBuiltinData $ PlutusTx.toData text
 
 myDatumHash = PSU.V2.datumHash myDatum
 
@@ -100,9 +106,9 @@ myDatumHash = PSU.V2.datumHash myDatum
    Redeemers
 -}
 
-redeemerDatum = ExpInputDatum { txOutRef  = PlutusV2.TxOutRef {txOutRefId = "b204b4554a827178b48275629e5eac9bde4f5350badecfcd108d87446f00bf26", txOutRefIdx = 0}
+redeemerDatum = ExpInputDatum { txOutRef  = PlutusV2.TxOutRef {txOutRefId = "2b1a7a149c1a3574f5d0c5afda47a4fef7c03df69a41551465503ffb6eddc996", txOutRefIdx = 2}
                               , expDatum  = PlutusV2.OutputDatum myDatum
-                              , inputType = RegularInput
+                              , inputType = BothInputTypes
                               }
 
 redeemerDatumHash = ExpInputDatum { txOutRef  = PlutusV2.TxOutRef {txOutRefId = "b204b4554a827178b48275629e5eac9bde4f5350badecfcd108d87446f00bf26", txOutRefIdx = 0}
@@ -160,18 +166,26 @@ expectedInlinePolicy expInline ctx =
         datumInInput d       = traceIfFalse "Expected regular input to have datum"           $ PlutusV2.OutputDatum d      == PlutusV2.txOutDatum (PlutusV2.txInInfoResolved findTxIn)
         datumHashInInput dh  = traceIfFalse "Expected regular input to have datum hash"      $ PlutusV2.OutputDatumHash dh == PlutusV2.txOutDatum (PlutusV2.txInInfoResolved findTxIn)
 
-        noOutputDatumInRefInput = traceIfFalse "Expected reference input to have no output datum" $ PlutusV2.NoOutputDatum      == PlutusV2.txOutDatum (PlutusV2.txInInfoResolved findRefTxIn)
-        datumInRefInput d       = traceIfFalse "Expected regular input to have datum"             $ PlutusV2.OutputDatum d      == PlutusV2.txOutDatum (PlutusV2.txInInfoResolved findRefTxIn)
-        datumHashInRefInput dh  = traceIfFalse "Expected regular input to have datum hash"        $ PlutusV2.OutputDatumHash dh == PlutusV2.txOutDatum (PlutusV2.txInInfoResolved findRefTxIn)
+        noOutputDatumInRefInput = traceIfFalse "Expected reference input to have no output datum"   $ PlutusV2.NoOutputDatum      == PlutusV2.txOutDatum (PlutusV2.txInInfoResolved findRefTxIn)
+        datumInRefInput d       = traceIfFalse "Expected reference input to have datum"             $ PlutusV2.OutputDatum d      == PlutusV2.txOutDatum (PlutusV2.txInInfoResolved findRefTxIn)
+        datumHashInRefInput dh  = traceIfFalse "Expected reference input to have datum hash"        $ PlutusV2.OutputDatumHash dh == PlutusV2.txOutDatum (PlutusV2.txInInfoResolved findRefTxIn)
 
 {-
     As a Minting Policy
 -}
 
-policy :: Scripts.MintingPolicy
-policy = PlutusV2.mkMintingPolicyScript $$(PlutusTx.compile [|| wrap ||])
+compiledCode :: PlutusTx.CompiledCode (BuiltinData -> BuiltinData -> ())
+compiledCode = $$(PlutusTx.compile [|| wrap ||])
      where
          wrap = PSU.V2.mkUntypedMintingPolicy expectedInlinePolicy
+
+policy :: Scripts.MintingPolicy
+policy = PlutusV2.mkMintingPolicyScript compiledCode
+
+thisScriptHash :: PlutusV2.ScriptHash
+thisScriptHash = PSU.V2.scriptHash $ PlutusV2.fromCompiledCode compiledCode
+
+printScriptHash = print $ "Script Hash: " ++ show thisScriptHash
 
 {-
     As a Script

@@ -3,7 +3,6 @@
 {-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE NamedFieldPuns        #-}
 {-# LANGUAGE NoImplicitPrelude     #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE RankNTypes            #-}
@@ -14,19 +13,18 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeOperators         #-}
 
-module CheckReferenceInputsPolicy
-  ( printRedeemer,
---    serialisedScript,
---    scriptSBS,
---    script,
---    writeSerialisedScript,
+module CountRedeemersPolicy
+  ( serialisedScript,
+    scriptSBS,
+    script,
+    writeSerialisedScript,
     --  , runTrace
   )
 where
 
-import           Cardano.Api                     (writeFileTextEnvelope)
+import           Cardano.Api                     (PlutusScript, PlutusScriptV2,
+                                                  writeFileTextEnvelope)
 import           Cardano.Api.Shelley             (PlutusScript (..),
-                                                  PlutusScriptV1,
                                                   ScriptDataJsonSchema (ScriptDataJsonDetailedSchema),
                                                   fromPlutusData,
                                                   scriptDataToJson)
@@ -42,8 +40,9 @@ import qualified Ledger.Typed.Scripts            as Scripts
 import           Ledger.Typed.Scripts.Validators
 import           Ledger.Value                    as Value
 import           Plutus.Contract                 as Contract
+import qualified Plutus.Script.Utils.V2.Scripts  as PSU.V2
 import           Plutus.Trace.Emulator           as Emulator
-import qualified Plutus.V1.Ledger.Api            as Plutus
+import qualified Plutus.V1.Ledger.Api            as PlutusV1
 import qualified Plutus.V2.Ledger.Api            as PlutusV2
 import qualified PlutusTx
 import qualified PlutusTx.AssocMap               as AMap
@@ -55,40 +54,16 @@ import           Prelude                         (IO, Semigroup (..), Show (..),
 import           Wallet.Emulator.Wallet
 
 {-
-   Redeemers
--}
-
---data ExpRedeemers = ExpRedeemers {redeemers :: [Plutus.Redeemer]}
-
---PlutusTx.unstableMakeIsData ''ExpRedeemers
-
-redeemer :: [ PlutusV2.TxOutRef ]
-redeemer =  [ PlutusV2.TxOutRef "b204b4554a827178b48275629e5eac9bde4f5350badecfcd108d87446f00bf26" 0,
-              PlutusV2.TxOutRef "b204b4554a827178b48275629e5eac9bde4f5350badecfcd108d87446f00bf26" 1 ]
-
-printRedeemer = print $ "Redeemer: " <> A.encode (scriptDataToJson ScriptDataJsonDetailedSchema $ fromPlutusData $ PlutusV2.toData redeemer)
-
-{-
    The validator script
 -}
 
 {-# INLINEABLE expectedInlinePolicy #-}
-expectedInlinePolicy :: [PlutusV2.TxOutRef] -> PlutusV2.ScriptContext -> Bool
-expectedInlinePolicy expRefTxo ctx =  expRedeemers == AMap.elems (PlutusV2.txInfoRedeemers info)
+expectedInlinePolicy :: Integer -> PlutusV2.ScriptContext -> Bool
+expectedInlinePolicy n ctx =  traceIfFalse "Number of redeemers does not match expected" $ n P.== P.length (PlutusV2.txInfoRedeemers info)
     where
         info :: PlutusV2.TxInfo
         info = PlutusV2.scriptContextTxInfo ctx
 
-        fromJust' :: BuiltinString -> Maybe a -> a
-        fromJust' err Nothing = traceError err
-        fromJust' _ (Just x)  = x
-
-        findRefTxInByTxOutRef :: PlutusV2.TxOutRef -> PlutusV2.TxInfo -> Maybe PlutusV2.TxInInfo -- to be replaced with builtin
-        findRefTxInByTxOutRef txoRef PlutusV2.TxInfo{txInfoReferenceInputs} = find (\PlutusV2.TxInInfo{txInInfoOutRef} -> txInInfoOutRef == txoRef) txInfo
-
-        findRefTxIn :: PlutusV2.TxOutRef -> PlutusV2.TxInInfo
-        findRefTxIn expRefTxo = fromJust' "Reference txIn doesn't exist" $ findRefTxInByTxOutRef expRefTxo info
-{-
 {-
     As a Minting Policy
 -}
@@ -96,14 +71,14 @@ expectedInlinePolicy expRefTxo ctx =  expRedeemers == AMap.elems (PlutusV2.txInf
 policy :: Scripts.MintingPolicy
 policy = PlutusV2.mkMintingPolicyScript $$(PlutusTx.compile [||wrap||])
     where
-        wrap = Scripts.wrapMintingPolicy expectedInlinePolicy -- waiting on V2 compiling
+        wrap = PSU.V2.mkUntypedMintingPolicy expectedInlinePolicy
 
 {-
     As a Script
 -}
 
-script :: Plutus.Script
-script = Plutus.unMintingPolicyScript policy
+script :: PlutusV2.Script
+script = PlutusV2.unMintingPolicyScript policy
 
 {-
     As a Short Byte String
@@ -116,12 +91,12 @@ scriptSBS = SBS.toShort . LBS.toStrict $ serialise script
     As a Serialised Script
 -}
 
-serialisedScript :: PlutusScript PlutusScriptV1
+serialisedScript :: PlutusScript PlutusScriptV2
 serialisedScript = PlutusScriptSerialised scriptSBS
 
 writeSerialisedScript :: IO ()
-writeSerialisedScript = void $ writeFileTextEnvelope "check-txo-inline.plutus" Nothing serialisedScript
--}
+writeSerialisedScript = void $ writeFileTextEnvelope "count-redeemers-policy.plutus" Nothing serialisedScript
+
 {-
 
 {-

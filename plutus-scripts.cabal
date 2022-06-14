@@ -15,9 +15,11 @@ library
                      , Deadline
                      , TokenNamePolicy
                      , CheckDatumPolicy
-                     --, CheckReferenceInputsPolicy
-                     CheckReferenceScriptPolicy
-                     --, CheckRedeemersPolicy
+                     , CheckReferenceInputs
+                     , CheckReferenceScriptPolicy
+                     , CheckRedeemersPolicy
+                     , CheckWitnessPolicy
+                     , CountRedeemersPolicy
   build-depends:       aeson
                      , base ^>=4.14.1.0
                      , bytestring

@@ -14,10 +14,8 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeOperators         #-}
 
-module CheckReferenceScriptPolicy
-  ( policyHash,
-    printRedeemer,
-    serialisedScript,
+module CheckWitnessPolicy
+  ( serialisedScript,
     scriptSBS,
     script,
     writeSerialisedScript,
@@ -64,74 +62,15 @@ import           Prelude                             (IO, Semigroup (..),
 import           Wallet.Emulator.Wallet
 
 {-
-   Define redeemer type to handle expected inline datum or datum hash at a txo
+   The policy
 -}
 
-data InputType = RegularInput | ReferenceInput | BothInputTypes
-    deriving (Show)
-
-PlutusTx.unstableMakeIsData ''InputType
-
-data ExpRefScript = ExpRefScript
-        { txOutRef     :: TxOutRef,
-          expRefScript :: Maybe ScriptHash,
-          inputType    :: InputType
-        }
-    deriving (Show)
-
-PlutusTx.unstableMakeIsData ''ExpRefScript
-
-{-
-   Redeemers
--}
-
-redeemer = ExpRefScript { txOutRef  = TxOutRef {txOutRefId = "b204b4554a827178b48275629e5eac9bde4f5350badecfcd108d87446f00bf26", txOutRefIdx = 0}
-                        , expRefScript  = Just "c4a19ee0baedc17a949f902688a6f6752673862ad921d23fb8233e23" --Just policyScriptHash -- this policy's script hash
-                        , inputType = RegularInput
-                        }
-
-printRedeemer = print $ "Redeemer: " <> A.encode (scriptDataToJson ScriptDataJsonDetailedSchema $ fromPlutusData $ toData redeemer)
-
-{-
-   The validator script
--}
-
-{-# INLINEABLE expectedRefScriptPolicy #-}
-expectedRefScriptPolicy :: ExpRefScript -> PlutusV2.ScriptContext -> Bool
-expectedRefScriptPolicy expRefScript ctx =
-    case expRefScript of
-        ExpRefScript _ Nothing RegularInput     -> noReferenceScriptInInput
-        ExpRefScript _ Nothing ReferenceInput   -> noReferenceScriptInRefInput
-        ExpRefScript _ Nothing BothInputTypes   -> noReferenceScriptInInput && noReferenceScriptInRefInput
-
-        ExpRefScript _ sh@(Just _) RegularInput   -> referenceScriptInInput sh
-        ExpRefScript _ sh@(Just _) ReferenceInput -> referenceScriptInRefInput sh
-        ExpRefScript _ sh@(Just _) BothInputTypes -> referenceScriptInInput sh && referenceScriptInRefInput sh
-
-        _                                       -> traceError "Unexpected case"
+{-# INLINEABLE expectedWitnessPolicy #-}
+expectedWitnessPolicy :: PlutusV2.PubKeyHash -> PlutusV2.ScriptContext -> Bool
+expectedWitnessPolicy pkh ctx = PlutusV2.txSignedBy info pkh
     where
         info :: PlutusV2.TxInfo
         info = PlutusV2.scriptContextTxInfo ctx
-
-        fromJust' :: BuiltinString -> Maybe a -> a
-        fromJust' err Nothing = traceError err
-        fromJust' _ (Just x)  = x
-
-        findTxIn :: PlutusV2.TxInInfo
-        findTxIn = fromJust' "txIn doesn't exist" $ PlutusV2.findTxInByTxOutRef (txOutRef expRefScript) info
-
-        findRefTxInByTxOutRef :: TxOutRef -> PlutusV2.TxInfo -> Maybe PlutusV2.TxInInfo -- similar to findTxInByTxOutRef, should be a built-in context
-        findRefTxInByTxOutRef outRef PlutusV2.TxInfo{txInfoReferenceInputs} =
-            find (\PlutusV2.TxInInfo{txInInfoOutRef} -> txInInfoOutRef == outRef) txInfoReferenceInputs
-
-        findRefTxIn :: PlutusV2.TxInInfo
-        findRefTxIn = fromJust' "txRefIn doesn't exist" $ findRefTxInByTxOutRef (txOutRef expRefScript) info
-
-        noReferenceScriptInInput  = traceIfFalse "Expected regular input to have no reference script" $ P.isNothing $ PlutusV2.txOutReferenceScript $ PlutusV2.txInInfoResolved findTxIn
-        referenceScriptInInput sh = traceIfFalse "Expected regular input to have reference script"    $ sh == PlutusV2.txOutReferenceScript (PlutusV2.txInInfoResolved findTxIn)
-
-        noReferenceScriptInRefInput  = traceIfFalse "Expected reference input to have no reference script" $ P.isNothing $ PlutusV2.txOutReferenceScript $ PlutusV2.txInInfoResolved findRefTxIn
-        referenceScriptInRefInput sh = traceIfFalse "Expected regular input to have reference script"    $ sh == PlutusV2.txOutReferenceScript (PlutusV2.txInInfoResolved findRefTxIn)
 
 {-
     As a Minting Policy
@@ -140,7 +79,7 @@ expectedRefScriptPolicy expRefScript ctx =
 compiledCode :: CompiledCode (BuiltinData -> BuiltinData -> ())
 compiledCode = $$(PlutusTx.compile [|| wrap ||])
     where
-        wrap = PSU.V2.mkUntypedMintingPolicy expectedRefScriptPolicy
+        wrap = PSU.V2.mkUntypedMintingPolicy expectedWitnessPolicy
 
 policyScriptHash :: ScriptHash
 policyScriptHash = scriptHash $ fromCompiledCode compiledCode
@@ -173,7 +112,7 @@ serialisedScript :: PlutusScript PlutusScriptV2
 serialisedScript = PlutusScriptSerialised scriptSBS
 
 writeSerialisedScript :: IO ()
-writeSerialisedScript = void $ writeFileTextEnvelope "check-reference-script.plutus" Nothing serialisedScript
+writeSerialisedScript = void $ writeFileTextEnvelope "check-witness-policy.plutus" Nothing serialisedScript
 
 {-
 

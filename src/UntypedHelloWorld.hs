@@ -12,13 +12,16 @@ module UntypedHelloWorld
   ( helloWorldSerialised,
     helloWorldSBS,
     writeHelloWorldScript,
-    traceHelloWorld,
+    writeHelloWorldScriptV2,
+    --traceHelloWorld,
   )
 where
 
-import           Cardano.Api                     (writeFileTextEnvelope)
+import           Cardano.Api                     (PlutusScriptVersion (PlutusScriptV2),
+                                                  writeFileTextEnvelope)
 import           Cardano.Api.Shelley             (PlutusScript (PlutusScriptSerialised),
-                                                  PlutusScriptV1)
+                                                  PlutusScriptV1,
+                                                  PlutusScriptV2)
 import           Codec.Serialise
 import qualified Data.ByteString.Lazy            as LBS
 import qualified Data.ByteString.Short           as SBS
@@ -32,8 +35,8 @@ import           Ledger.Constraints              as Constraints
 import qualified Ledger.Typed.Scripts            as Ledger
 import           Ledger.Typed.Scripts.Validators as Scripts
 import           Plutus.Contract                 as Contract
-import qualified Plutus.Script.Utils.V1.Address  as PSU.V1
 import qualified Plutus.Script.Utils.V1.Scripts  as PSU.V1
+import qualified Plutus.Script.Utils.V2.Scripts  as PSU.V2
 import           Plutus.Trace.Emulator           as Emulator
 import qualified Plutus.V1.Ledger.Api            as Ledger.Api
 import qualified Plutus.V1.Ledger.Scripts        as Plutus
@@ -87,12 +90,18 @@ helloWorldSerialised = PlutusScriptSerialised helloWorldSBS
 writeHelloWorldScript :: IO ()
 writeHelloWorldScript = void $ writeFileTextEnvelope "untyped-helloWorld.plutus" Nothing helloWorldSerialised
 
+helloWorldSerialisedV2 :: PlutusScript PlutusScriptV2
+helloWorldSerialisedV2 = PlutusScriptSerialised helloWorldSBS
+
+writeHelloWorldScriptV2 :: IO ()
+writeHelloWorldScriptV2 = void $ writeFileTextEnvelope "untyped-helloWorld-v2.plutus" Nothing helloWorldSerialisedV2
+
 {-
     Offchain Contract
 -}
-
+{-
 scrAddress :: Ledger.Address
-scrAddress = PSU.V1.mkValidatorAddress helloWorldValidator
+scrAddress = mkValidatorAddress helloWorldValidator
 --scrAddress = Ledger.scriptHashAddress valHash
 
 valHash :: PSU.V1.ValidatorHash
@@ -130,3 +139,4 @@ helloWorldTrace :: EmulatorTrace ()
 helloWorldTrace = do
   void $ activateContractWallet (knownWallet 1) helloWorldContract
   void $ Emulator.nextSlot
+-}
