@@ -9,129 +9,106 @@
 {-# LANGUAGE TypeOperators       #-}
 
 module TokenNamePolicy
-  ( serialisedScript,
-    scriptSBS,
-    script,
-    writeSerialisedScript,
+  ( serialisedScriptV1,
+    serialisedScriptV2,
+    scriptSBSV1,
+    scriptSBSV2,
+    scriptV1,
+    scriptV2,
+    writeSerialisedScriptV1,
+    writeSerialisedScriptV2,
     --  , runTrace
   )
 where
 
-import           Cardano.Api                     (writeFileTextEnvelope)
-import           Cardano.Api.Shelley             (PlutusScript (..),
-                                                  PlutusScriptV1)
+import           Cardano.Api                    (PlutusScriptV1, PlutusScriptV2,
+                                                 writeFileTextEnvelope)
+import           Cardano.Api.Shelley            (PlutusScript (..))
 import           Codec.Serialise
-import qualified Data.ByteString.Lazy            as LBS
-import qualified Data.ByteString.Short           as SBS
-import           Data.Functor                    (void)
-import           Data.Map                        as Map
-import           Data.Text                       (Text)
-import           Data.Void                       (Void)
-import           Ledger
-import qualified Ledger                          as PSU.V1
-import           Ledger.Ada                      as Ada
-import           Ledger.Constraints              as Constraints
-import qualified Ledger.Typed.Scripts            as Scripts
-import           Ledger.Typed.Scripts.Validators
-import           Ledger.Value                    as Value
-import           Plutus.Contract                 as Contract
-import qualified Plutus.Script.Utils.V1.Scripts  as PSU.V1
-import           Plutus.Trace.Emulator           as Emulator
-import qualified Plutus.V1.Ledger.Api            as Ledger.Api
-import qualified Plutus.V1.Ledger.Scripts        as Plutus
+import qualified Data.ByteString.Lazy           as LBS
+import qualified Data.ByteString.Short          as SBS
+import           Data.Functor                   (void)
+import qualified Ledger.Typed.Scripts           as Scripts
+import           Ledger.Value                   as Value
+import           Plutus.Contract                as Contract
+import qualified Plutus.Script.Utils.V1.Scripts as PSU.V1
+import qualified Plutus.Script.Utils.V2.Scripts as PSU.V2
+import qualified Plutus.V1.Ledger.Api           as PlutusV1
+import qualified Plutus.V1.Ledger.Contexts      as PlutusV1
+import qualified Plutus.V2.Ledger.Api           as PlutusV2
+import qualified Plutus.V2.Ledger.Contexts      as PlutusV2
 import qualified PlutusTx
-import qualified PlutusTx.Builtins               as BI
-import           PlutusTx.Prelude                as P hiding (Semigroup (..),
-                                                       unless, (.))
-import           Prelude                         (IO, Semigroup (..), Show (..),
-                                                  String, putStrLn, (.))
-import           Wallet.Emulator.Wallet
+import qualified PlutusTx.Builtins              as BI
+import           PlutusTx.Prelude               as P hiding (Semigroup (..),
+                                                      unless, (.))
+import           Prelude                        (IO, (.))
 
 {-
    The validator script (checks redeemer token name is used for minting)
 -}
 
-{-# INLINEABLE tokenNamePolicy #-}
-tokenNamePolicy :: TokenName -> ScriptContext -> Bool
-tokenNamePolicy tn ctx = traceIfFalse "wrong token name" checkTokenName
+{-# INLINEABLE tokenNamePolicyV1 #-}
+tokenNamePolicyV1 :: TokenName -> PlutusV1.ScriptContext -> Bool
+tokenNamePolicyV1 tn ctx = traceIfFalse "wrong token name" checkTokenName
     where
-    info :: TxInfo
-    info = scriptContextTxInfo ctx
+    info :: PlutusV1.TxInfo
+    info = PlutusV1.scriptContextTxInfo ctx
 
     checkTokenName :: Bool
-    checkTokenName = valueOf (txInfoMint info) (ownCurrencySymbol ctx) tn > 0
+    checkTokenName = valueOf (PlutusV1.txInfoMint info) (PlutusV1.ownCurrencySymbol ctx) tn > 0
+
+{-# INLINEABLE tokenNamePolicyV2 #-}
+tokenNamePolicyV2 :: TokenName -> PlutusV2.ScriptContext -> Bool
+tokenNamePolicyV2 tn ctx = traceIfFalse "wrong token name" checkTokenName
+    where
+    info :: PlutusV2.TxInfo
+    info = PlutusV2.scriptContextTxInfo ctx
+
+    checkTokenName :: Bool
+    checkTokenName = valueOf (PlutusV2.txInfoMint info) (PlutusV2.ownCurrencySymbol ctx) tn > 0
 
 {-
     As a Minting Policy
 -}
 
-policy :: Scripts.MintingPolicy
-policy = Plutus.mkMintingPolicyScript $$(PlutusTx.compile [|| PSU.V1.mkUntypedMintingPolicy tokenNamePolicy ||])
+policyV1 :: Scripts.MintingPolicy
+policyV1 = PlutusV1.mkMintingPolicyScript $$(PlutusTx.compile [|| PSU.V1.mkUntypedMintingPolicy tokenNamePolicyV1 ||])
+
+policyV2 :: Scripts.MintingPolicy
+policyV2 = PlutusV2.mkMintingPolicyScript $$(PlutusTx.compile [|| PSU.V2.mkUntypedMintingPolicy tokenNamePolicyV2 ||])
 
 {-
     As a Script
 -}
 
-script :: Plutus.Script
-script = Plutus.unMintingPolicyScript policy
+scriptV1 :: PlutusV1.Script
+scriptV1 = PlutusV1.unMintingPolicyScript policyV1
+
+scriptV2 :: PlutusV2.Script
+scriptV2 = PlutusV2.unMintingPolicyScript policyV2
 
 {-
     As a Short Byte String
 -}
 
-scriptSBS :: SBS.ShortByteString
-scriptSBS = SBS.toShort . LBS.toStrict $ serialise script
+scriptSBSV1 :: SBS.ShortByteString
+scriptSBSV1 = SBS.toShort . LBS.toStrict $ serialise scriptV1
+
+scriptSBSV2 :: SBS.ShortByteString
+scriptSBSV2 = SBS.toShort . LBS.toStrict $ serialise scriptV2
 
 {-
     As a Serialised Script
 -}
 
-serialisedScript :: PlutusScript PlutusScriptV1
-serialisedScript = PlutusScriptSerialised scriptSBS
+serialisedScriptV1 :: PlutusScript PlutusScriptV1
+serialisedScriptV1 = PlutusScriptSerialised scriptSBSV1
 
-writeSerialisedScript :: IO ()
-writeSerialisedScript = void $ writeFileTextEnvelope "mint-tokenname.plutus" Nothing serialisedScript
+writeSerialisedScriptV1 :: IO ()
+writeSerialisedScriptV1 = void $ writeFileTextEnvelope "token-name-policy-V1.plutus" Nothing serialisedScriptV1
 
-{-
+serialisedScriptV2 :: PlutusScript PlutusScriptV2
+serialisedScriptV2 = PlutusScriptSerialised scriptSBSV2
 
-{-
-    Offchain Contract
--}
-
-scrAddress :: Ledger.Address
-scrAddress = scriptAddress helloWorldValidator
-
-valHash :: ValidatorHash
-valHash = Ledger.validatorHash helloWorldValidator
-
-helloWorldContract :: Contract () Empty Text ()
-helloWorldContract = do
-    logInfo @String $ "1: pay the script address"
-    let tx1 = Constraints.mustPayToOtherScript valHash (Plutus.Datum $ hello) $ Ada.lovelaceValueOf 2000000
-    ledgerTx <- submitTx tx1
-    awaitTxConfirmed $ getCardanoTxId ledgerTx
-
-    logInfo @String $ "2: spend from script address including \"Hello World!\" datum"
-    utxos <- utxosAt scrAddress
-    let orefs = fst <$> Map.toList utxos
-        lookups = Constraints.otherScript helloWorldValidator <>
-                  Constraints.unspentOutputs utxos
-        tx2 = mconcat [Constraints.mustSpendScriptOutput oref unitRedeemer | oref <- orefs] <> -- List comprehension
-              Constraints.mustIncludeDatum (Plutus.Datum $ BI.mkB "Not Hello World") -- doesn't seem to care what datum is
-    ledgerTx <- submitTxConstraintsWith @Void lookups tx2
-    awaitTxConfirmed $ getCardanoTxId ledgerTx
-    logInfo @String $ "\"Hello World!\" tx successfully submitted"
-
-{-
-    Trace
--}
-
-traceHelloWorld :: IO ()
-traceHelloWorld = runEmulatorTraceIO helloWorldTrace
-
-helloWorldTrace :: EmulatorTrace ()
-helloWorldTrace = do
-    void $ activateContractWallet (knownWallet 1) helloWorldContract
-    void $ Emulator.nextSlot
-
--}
+writeSerialisedScriptV2 :: IO ()
+writeSerialisedScriptV2 = void $ writeFileTextEnvelope "token-name-policy-V2.plutus" Nothing serialisedScriptV2

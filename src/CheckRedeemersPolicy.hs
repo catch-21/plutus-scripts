@@ -79,9 +79,9 @@ printRedeemer = print $ "Redeemer: " <> A.encode (scriptDataToJson ScriptDataJso
    The validator script
 -}
 
-{-# INLINEABLE expectedInlinePolicy #-}
-expectedInlinePolicy :: [PlutusV2.Redeemer] -> PlutusV2.ScriptContext -> Bool
-expectedInlinePolicy expRedeemers ctx =  traceIfFalse "Redeemers do not match expected" $ P.all ((P.== True) . findR) expRedeemers            &&
+{-# INLINEABLE checkRedeemersPolicy #-}
+checkRedeemersPolicy :: [PlutusV2.Redeemer] -> PlutusV2.ScriptContext -> Bool
+checkRedeemersPolicy expRedeemers ctx =  traceIfFalse "Redeemers do not match expected" $ P.all ((P.== True) . findR) expRedeemers            &&
                                          traceIfFalse "Number of redeemers (without own) does not match expected" (P.length expRedeemers P.== P.length withoutOwnRedeemer)
     where
         info :: PlutusV2.TxInfo
@@ -102,7 +102,7 @@ expectedInlinePolicy expRedeemers ctx =  traceIfFalse "Redeemers do not match ex
 policy :: Scripts.MintingPolicy
 policy = PlutusV2.mkMintingPolicyScript $$(PlutusTx.compile [||wrap||])
     where
-        wrap = PSU.V2.mkUntypedMintingPolicy expectedInlinePolicy
+        wrap = PSU.V2.mkUntypedMintingPolicy checkRedeemersPolicy
 
 {-
     As a Script
@@ -127,47 +127,3 @@ serialisedScript = PlutusScriptSerialised scriptSBS
 
 writeSerialisedScript :: IO ()
 writeSerialisedScript = void $ writeFileTextEnvelope "check-redeemers-policy.plutus" Nothing serialisedScript
-
-{-
-
-{-
-    Offchain Contract
--}
-
-scrAddress :: Ledger.Address
-scrAddress = scriptAddress helloWorldValidator
-
-valHash :: ValidatorHash
-valHash = Ledger.validatorHash helloWorldValidator
-
-helloWorldContract :: Contract () Empty Text ()
-helloWorldContract = do
-    logInfo @String $ "1: pay the script address"
-    let tx1 = Constraints.mustPayToOtherScript valHash (Plutus.Datum $ hello) $ Ada.lovelaceValueOf 2000000
-    ledgerTx <- submitTx tx1
-    awaitTxConfirmed $ getCardanoTxId ledgerTx
-
-    logInfo @String $ "2: spend from script address including \"Hello World!\" datum"
-    utxos <- utxosAt scrAddress
-    let orefs = fst <$> Map.toList utxos
-        lookups = Constraints.otherScript helloWorldValidator <>
-                  Constraints.unspentOutputs utxos
-        tx2 = mconcat [Constraints.mustSpendScriptOutput oref unitRedeemer | oref <- orefs] <> -- List comprehension
-              Constraints.mustIncludeDatum (Plutus.Datum $ BI.mkB "Not Hello World") -- doesn't seem to care what datum is
-    ledgerTx <- submitTxConstraintsWith @Void lookups tx2
-    awaitTxConfirmed $ getCardanoTxId ledgerTx
-    logInfo @String $ "\"Hello World!\" tx successfully submitted"
-
-{-
-    Trace
--}
-
-traceHelloWorld :: IO ()
-traceHelloWorld = runEmulatorTraceIO helloWorldTrace
-
-helloWorldTrace :: EmulatorTrace ()
-helloWorldTrace = do
-    void $ activateContractWallet (knownWallet 1) helloWorldContract
-    void $ Emulator.nextSlot
-
--}

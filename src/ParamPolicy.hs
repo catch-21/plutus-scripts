@@ -13,8 +13,9 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeOperators         #-}
 
-module CountRedeemersPolicy
-  ( serialisedScript,
+module ParamPolicy
+  ( printRedeemer,
+    serialisedScript,
     scriptSBS,
     script,
     writeSerialisedScript,
@@ -34,6 +35,7 @@ import qualified Data.ByteString.Lazy            as LBS
 import qualified Data.ByteString.Short           as SBS
 import           Data.Functor                    (void)
 --import           Ledger
+import           Ledger                          (MintingPolicy (getMintingPolicy))
 import           Ledger.Ada                      as Ada
 import           Ledger.Constraints              as Constraints
 import qualified Ledger.Typed.Scripts            as Scripts
@@ -44,6 +46,7 @@ import qualified Plutus.Script.Utils.V2.Scripts  as PSU.V2
 import           Plutus.Trace.Emulator           as Emulator
 import qualified Plutus.V1.Ledger.Api            as PlutusV1
 import qualified Plutus.V2.Ledger.Api            as PlutusV2
+import           Plutus.V2.Ledger.Contexts       (ownCurrencySymbol)
 import qualified PlutusTx
 import qualified PlutusTx.AssocMap               as AMap
 import qualified PlutusTx.Builtins               as BI
@@ -54,31 +57,50 @@ import           Prelude                         (IO, Semigroup (..), Show (..),
 import           Wallet.Emulator.Wallet
 
 {-
+   Redeemers
+-}
+
+--data ExpRedeemers = ExpRedeemers {redeemers :: [Plutus.Redeemer]}
+
+--PlutusTx.unstableMakeIsData ''ExpRedeemers
+
+asRedeemer :: PlutusTx.ToData a => a -> PlutusV2.Redeemer
+asRedeemer a = PlutusV2.Redeemer $ PlutusTx.dataToBuiltinData $ PlutusTx.toData a
+
+intAsRedeemer :: Integer -> PlutusV2.Redeemer
+intAsRedeemer = asRedeemer @Integer
+
+redeemer :: [PlutusV2.Redeemer]
+redeemer =  [intAsRedeemer 42, intAsRedeemer 43, asRedeemer @BI.BuiltinByteString "d"]
+
+printRedeemer = print $ "Redeemer: " <> A.encode (scriptDataToJson ScriptDataJsonDetailedSchema $ fromPlutusData $ PlutusV2.toData redeemer)
+
+{-
    The validator script
 -}
 
-{-# INLINEABLE countRedeemersPolicy #-}
-countRedeemersPolicy :: Integer -> PlutusV2.ScriptContext -> Bool
-countRedeemersPolicy n ctx =  traceIfFalse "Number of redeemers does not match expected" $ n P.== P.length (PlutusV2.txInfoRedeemers info)
-    where
-        info :: PlutusV2.TxInfo
-        info = PlutusV2.scriptContextTxInfo ctx
+
+{-# INLINEABLE paramsPolicy #-}
+paramsPolicy :: BuiltinByteString -> [PlutusV2.Redeemer] -> PlutusV2.ScriptContext -> Bool
+paramsPolicy bs expRedeemers ctx =  True
 
 {-
     As a Minting Policy
 -}
 
-policy :: Scripts.MintingPolicy
-policy = PlutusV2.mkMintingPolicyScript $$(PlutusTx.compile [||wrap||])
-    where
-        wrap = PSU.V2.mkUntypedMintingPolicy countRedeemersPolicy
+-- Example of how to paramaterise minting policy
+policy :: BuiltinByteString -> Scripts.MintingPolicy
+policy s = PlutusV2.mkMintingPolicyScript $
+        $$(PlutusTx.compile [||PSU.V2.mkUntypedMintingPolicy . paramsPolicy||])
+        `PlutusTx.applyCode`
+        PlutusTx.liftCode s
 
 {-
     As a Script
 -}
 
 script :: PlutusV2.Script
-script = PlutusV2.unMintingPolicyScript policy
+script = PlutusV2.unMintingPolicyScript $ policy "cats"
 
 {-
     As a Short Byte String
@@ -95,5 +117,5 @@ serialisedScript :: PlutusScript PlutusScriptV2
 serialisedScript = PlutusScriptSerialised scriptSBS
 
 writeSerialisedScript :: IO ()
-writeSerialisedScript = void $ writeFileTextEnvelope "count-redeemers-policy.plutus" Nothing serialisedScript
+writeSerialisedScript = void $ writeFileTextEnvelope "params-policy.plutus" Nothing serialisedScript
 

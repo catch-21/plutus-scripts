@@ -16,6 +16,7 @@
 
 module CheckReferenceScriptPolicy
   ( policyHash,
+
     printRedeemer,
     serialisedScript,
     scriptSBS,
@@ -86,7 +87,7 @@ PlutusTx.unstableMakeIsData ''ExpRefScript
 -}
 
 redeemer = ExpRefScript { txOutRef  = TxOutRef {txOutRefId = "b204b4554a827178b48275629e5eac9bde4f5350badecfcd108d87446f00bf26", txOutRefIdx = 0}
-                        , expRefScript  = Just "c4a19ee0baedc17a949f902688a6f6752673862ad921d23fb8233e23" --Just policyScriptHash -- this policy's script hash
+                        , expRefScript  = Just  policyScriptHash -- "c4a19ee0baedc17a949f902688a6f6752673862ad921d23fb8233e23" <- this policy's script hash
                         , inputType = RegularInput
                         }
 
@@ -131,7 +132,7 @@ expectedRefScriptPolicy expRefScript ctx =
         referenceScriptInInput sh = traceIfFalse "Expected regular input to have reference script"    $ sh == PlutusV2.txOutReferenceScript (PlutusV2.txInInfoResolved findTxIn)
 
         noReferenceScriptInRefInput  = traceIfFalse "Expected reference input to have no reference script" $ P.isNothing $ PlutusV2.txOutReferenceScript $ PlutusV2.txInInfoResolved findRefTxIn
-        referenceScriptInRefInput sh = traceIfFalse "Expected regular input to have reference script"    $ sh == PlutusV2.txOutReferenceScript (PlutusV2.txInInfoResolved findRefTxIn)
+        referenceScriptInRefInput sh = traceIfFalse "Expected reference input to have reference script"    $ sh == PlutusV2.txOutReferenceScript (PlutusV2.txInInfoResolved findRefTxIn)
 
 {-
     As a Minting Policy
@@ -143,13 +144,13 @@ compiledCode = $$(PlutusTx.compile [|| wrap ||])
         wrap = PSU.V2.mkUntypedMintingPolicy expectedRefScriptPolicy
 
 policyScriptHash :: ScriptHash
-policyScriptHash = scriptHash $ fromCompiledCode compiledCode
+policyScriptHash = PSU.V2.scriptHash $ fromCompiledCode compiledCode
 
 policy :: Scripts.MintingPolicy
 policy = PlutusV2.mkMintingPolicyScript compiledCode
 
 policyHash :: MintingPolicyHash
-policyHash = PSU.V2.mintingPolicyHash policy
+policyHash = PSU.V2.mintingPolicyHash policy -- different way to produce the same hash as policyScriptHash
 
 {-
     As a Script
@@ -174,47 +175,3 @@ serialisedScript = PlutusScriptSerialised scriptSBS
 
 writeSerialisedScript :: IO ()
 writeSerialisedScript = void $ writeFileTextEnvelope "check-reference-script.plutus" Nothing serialisedScript
-
-{-
-
-{-
-    Offchain Contract
--}
-
-scrAddress :: Ledger.Address
-scrAddress = scriptAddress helloWorldValidator
-
-valHash :: ValidatorHash
-valHash = Ledger.validatorHash helloWorldValidator
-
-helloWorldContract :: Contract () Empty Text ()
-helloWorldContract = do
-    logInfo @String $ "1: pay the script address"
-    let tx1 = Constraints.mustPayToOtherScript valHash (Plutus.Datum $ hello) $ Ada.lovelaceValueOf 2000000
-    ledgerTx <- submitTx tx1
-    awaitTxConfirmed $ getCardanoTxId ledgerTx
-
-    logInfo @String $ "2: spend from script address including \"Hello World!\" datum"
-    utxos <- utxosAt scrAddress
-    let orefs = fst <$> Map.toList utxos
-        lookups = Constraints.otherScript helloWorldValidator <>
-                  Constraints.unspentOutputs utxos
-        tx2 = mconcat [Constraints.mustSpendScriptOutput oref unitRedeemer | oref <- orefs] <> -- List comprehension
-              Constraints.mustIncludeDatum (Plutus.Datum $ BI.mkB "Not Hello World") -- doesn't seem to care what datum is
-    ledgerTx <- submitTxConstraintsWith @Void lookups tx2
-    awaitTxConfirmed $ getCardanoTxId ledgerTx
-    logInfo @String $ "\"Hello World!\" tx successfully submitted"
-
-{-
-    Trace
--}
-
-traceHelloWorld :: IO ()
-traceHelloWorld = runEmulatorTraceIO helloWorldTrace
-
-helloWorldTrace :: EmulatorTrace ()
-helloWorldTrace = do
-    void $ activateContractWallet (knownWallet 1) helloWorldContract
-    void $ Emulator.nextSlot
-
--}

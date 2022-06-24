@@ -13,8 +13,9 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeOperators         #-}
 
-module CountRedeemersPolicy
-  ( serialisedScript,
+module CheckDatumMapPolicy
+  ( printRedeemer,
+    serialisedScript,
     scriptSBS,
     script,
     writeSerialisedScript,
@@ -34,6 +35,7 @@ import qualified Data.ByteString.Lazy            as LBS
 import qualified Data.ByteString.Short           as SBS
 import           Data.Functor                    (void)
 --import           Ledger
+import           Ledger                          (MintingPolicy (getMintingPolicy))
 import           Ledger.Ada                      as Ada
 import           Ledger.Constraints              as Constraints
 import qualified Ledger.Typed.Scripts            as Scripts
@@ -54,16 +56,37 @@ import           Prelude                         (IO, Semigroup (..), Show (..),
 import           Wallet.Emulator.Wallet
 
 {-
+   Redeemers
+-}
+
+--data ExpRedeemers = ExpRedeemers {redeemers :: [Plutus.Redeemer]}
+
+--PlutusTx.unstableMakeIsData ''ExpRedeemers
+
+asDatum :: PlutusTx.ToData a => a -> PlutusV2.Datum
+asDatum a = PlutusV2.Datum $ PlutusTx.dataToBuiltinData $ PlutusTx.toData a
+
+intAsDatum :: Integer -> PlutusV2.Datum
+intAsDatum = asDatum @Integer
+
+redeemer :: [PlutusV2.Datum]
+redeemer =  [intAsDatum 42, intAsDatum 43, asDatum @BI.BuiltinByteString "d"]
+
+printRedeemer = print $ "Redeemer: " <> A.encode (scriptDataToJson ScriptDataJsonDetailedSchema $ fromPlutusData $ PlutusV2.toData redeemer)
+
+{-
    The validator script
 -}
 
-{-# INLINEABLE countRedeemersPolicy #-}
-countRedeemersPolicy :: Integer -> PlutusV2.ScriptContext -> Bool
-countRedeemersPolicy n ctx =  traceIfFalse "Number of redeemers does not match expected" $ n P.== P.length (PlutusV2.txInfoRedeemers info)
+{-# INLINEABLE checkDatumsPolicy #-}
+checkDatumsPolicy :: [PlutusV2.Datum] -> PlutusV2.ScriptContext -> Bool
+checkDatumsPolicy expRedeemers ctx =  traceIfFalse "Datums in txInfoData do not match expected" $ P.all ((P.== True) . findD) expRedeemers
     where
         info :: PlutusV2.TxInfo
         info = PlutusV2.scriptContextTxInfo ctx
 
+        findD :: PlutusV2.Datum -> Bool
+        findD r = P.isJust $ P.find (P.== r) (PlutusV2.txInfoData info)
 {-
     As a Minting Policy
 -}
@@ -71,7 +94,7 @@ countRedeemersPolicy n ctx =  traceIfFalse "Number of redeemers does not match e
 policy :: Scripts.MintingPolicy
 policy = PlutusV2.mkMintingPolicyScript $$(PlutusTx.compile [||wrap||])
     where
-        wrap = PSU.V2.mkUntypedMintingPolicy countRedeemersPolicy
+        wrap = PSU.V2.mkUntypedMintingPolicy checkDatumsPolicy
 
 {-
     As a Script
@@ -95,5 +118,5 @@ serialisedScript :: PlutusScript PlutusScriptV2
 serialisedScript = PlutusScriptSerialised scriptSBS
 
 writeSerialisedScript :: IO ()
-writeSerialisedScript = void $ writeFileTextEnvelope "count-redeemers-policy.plutus" Nothing serialisedScript
+writeSerialisedScript = void $ writeFileTextEnvelope "check-datum-map-policy.plutus" Nothing serialisedScript
 

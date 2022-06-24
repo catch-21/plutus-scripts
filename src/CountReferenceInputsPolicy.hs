@@ -13,7 +13,7 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeOperators         #-}
 
-module CountRedeemersPolicy
+module CountReferenceInputsPolicy
   ( serialisedScript,
     scriptSBS,
     script,
@@ -57,9 +57,9 @@ import           Wallet.Emulator.Wallet
    The validator script
 -}
 
-{-# INLINEABLE countRedeemersPolicy #-}
-countRedeemersPolicy :: Integer -> PlutusV2.ScriptContext -> Bool
-countRedeemersPolicy n ctx =  traceIfFalse "Number of redeemers does not match expected" $ n P.== P.length (PlutusV2.txInfoRedeemers info)
+{-# INLINEABLE countReferenceInputssPolicy #-}
+countReferenceInputssPolicy :: Integer -> PlutusV2.ScriptContext -> Bool
+countReferenceInputssPolicy n ctx =  traceIfFalse "Number of reference inputs does not match expected" $ n P.== P.length (PlutusV2.txInfoReferenceInputs info)
     where
         info :: PlutusV2.TxInfo
         info = PlutusV2.scriptContextTxInfo ctx
@@ -71,7 +71,7 @@ countRedeemersPolicy n ctx =  traceIfFalse "Number of redeemers does not match e
 policy :: Scripts.MintingPolicy
 policy = PlutusV2.mkMintingPolicyScript $$(PlutusTx.compile [||wrap||])
     where
-        wrap = PSU.V2.mkUntypedMintingPolicy countRedeemersPolicy
+        wrap = PSU.V2.mkUntypedMintingPolicy countReferenceInputssPolicy
 
 {-
     As a Script
@@ -95,5 +95,5 @@ serialisedScript :: PlutusScript PlutusScriptV2
 serialisedScript = PlutusScriptSerialised scriptSBS
 
 writeSerialisedScript :: IO ()
-writeSerialisedScript = void $ writeFileTextEnvelope "count-redeemers-policy.plutus" Nothing serialisedScript
+writeSerialisedScript = void $ writeFileTextEnvelope "count-reference-inputs-policy.plutus" Nothing serialisedScript
 

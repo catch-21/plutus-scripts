@@ -13,7 +13,7 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeOperators         #-}
 
-module CountRedeemersPolicy
+module CountDatumMapPolicy
   ( serialisedScript,
     scriptSBS,
     script,
@@ -47,8 +47,9 @@ import qualified Plutus.V2.Ledger.Api            as PlutusV2
 import qualified PlutusTx
 import qualified PlutusTx.AssocMap               as AMap
 import qualified PlutusTx.Builtins               as BI
-import           PlutusTx.Prelude                as P hiding (Semigroup (..),
-                                                       unless, (.))
+import           PlutusTx.Prelude                as P (Bool, Eq ((==)), Integer,
+                                                       Maybe (Nothing), length,
+                                                       traceIfFalse, ($))
 import           Prelude                         (IO, Semigroup (..), Show (..),
                                                   String, print, putStrLn, (.))
 import           Wallet.Emulator.Wallet
@@ -57,9 +58,9 @@ import           Wallet.Emulator.Wallet
    The validator script
 -}
 
-{-# INLINEABLE countRedeemersPolicy #-}
-countRedeemersPolicy :: Integer -> PlutusV2.ScriptContext -> Bool
-countRedeemersPolicy n ctx =  traceIfFalse "Number of redeemers does not match expected" $ n P.== P.length (PlutusV2.txInfoRedeemers info)
+{-# INLINEABLE countDatumsPolicy #-}
+countDatumsPolicy :: Integer -> PlutusV2.ScriptContext -> Bool
+countDatumsPolicy n ctx =  traceIfFalse "Number of datums in txInfoData map does not match expected" $ n P.== P.length (PlutusV2.txInfoData info)
     where
         info :: PlutusV2.TxInfo
         info = PlutusV2.scriptContextTxInfo ctx
@@ -71,7 +72,7 @@ countRedeemersPolicy n ctx =  traceIfFalse "Number of redeemers does not match e
 policy :: Scripts.MintingPolicy
 policy = PlutusV2.mkMintingPolicyScript $$(PlutusTx.compile [||wrap||])
     where
-        wrap = PSU.V2.mkUntypedMintingPolicy countRedeemersPolicy
+        wrap = PSU.V2.mkUntypedMintingPolicy countDatumsPolicy
 
 {-
     As a Script
@@ -95,5 +96,5 @@ serialisedScript :: PlutusScript PlutusScriptV2
 serialisedScript = PlutusScriptSerialised scriptSBS
 
 writeSerialisedScript :: IO ()
-writeSerialisedScript = void $ writeFileTextEnvelope "count-redeemers-policy.plutus" Nothing serialisedScript
+writeSerialisedScript = void $ writeFileTextEnvelope "count-datum-map-policy.plutus" Nothing serialisedScript
 

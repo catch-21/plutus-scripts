@@ -20,6 +20,10 @@ library
                      , CheckRedeemersPolicy
                      , CheckWitnessPolicy
                      , CountRedeemersPolicy
+                     , CountDatumMapPolicy
+                     , CheckDatumMapPolicy
+                     , CountReferenceInputsPolicy
+                     , CheckTxInDatumPolicyV1
   build-depends:       aeson
                      , base ^>=4.14.1.0
                      , bytestring
