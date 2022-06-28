@@ -13,6 +13,8 @@ library
   exposed-modules:     UntypedHelloWorld
                      , TypedDatumRedeemer42
                      , Deadline
+                     , DeadlinePolicy
+                     , DeadlineRedeemerPolicy
                      , TokenNamePolicy
                      , CheckDatumPolicy
                      , CheckReferenceInputs
@@ -24,6 +26,7 @@ library
                      , CheckDatumMapPolicy
                      , CountReferenceInputsPolicy
                      , CheckTxInDatumPolicyV1
+                     , NFTMint
   build-depends:       aeson
                      , base ^>=4.14.1.0
                      , bytestring

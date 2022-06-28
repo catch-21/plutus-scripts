@@ -31,7 +31,6 @@ import           Ledger
 import           Ledger.Ada                       as Ada
 import           Ledger.Constraints               as Constraints
 import           Ledger.Constraints.TxConstraints as TxConstraints
-import           Ledger.Scripts                   (ValidatorHash)
 import qualified Ledger.Typed.Scripts             as Scripts
 import           Ledger.Typed.Scripts.Validators
 import           Plutus.Contract                  as Contract
@@ -42,8 +41,7 @@ import qualified PlutusTx
 import qualified PlutusTx.Builtins                as BI
 import           PlutusTx.Prelude                 as P hiding (Semigroup (..),
                                                         unless, (.))
-import           Prelude                          (IO, Semigroup (..),
-                                                   Show (..), String, putStrLn,
+import           Prelude                          (IO, Semigroup (..), String,
                                                    (.))
 import           Wallet.Emulator.Wallet
 

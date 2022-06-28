@@ -19,14 +19,12 @@ module CheckReferenceInputs
     serialisedScript,
     scriptSBS,
     writeSerialisedScript,
-    --  , runTrace
   )
 where
 
 import           Cardano.Api                    (PlutusScriptV2,
                                                  writeFileTextEnvelope)
 import           Cardano.Api.Shelley            (PlutusScript (..),
-                                                 PlutusScriptV1,
                                                  ScriptDataJsonSchema (ScriptDataJsonDetailedSchema),
                                                  fromPlutusData,
                                                  scriptDataToJson)
@@ -35,24 +33,13 @@ import           Data.Aeson                     as A
 import qualified Data.ByteString.Lazy           as LBS
 import qualified Data.ByteString.Short          as SBS
 import           Data.Functor                   (void)
-import           Ledger.Ada                     as Ada
-import           Ledger.Constraints             as Constraints
 import qualified Ledger.Typed.Scripts           as Scripts
-import           Ledger.Value                   as Value
-import           Plutus.Contract                as Contract
 import qualified Plutus.Script.Utils.V2.Scripts as PSU.V2
-import           Plutus.Trace.Emulator          as Emulator
---import qualified Plutus.V1.Ledger.Api            as Plutus
-import           Ledger                         (UntypedValidator)
 import qualified Plutus.V2.Ledger.Api           as PlutusV2
 import qualified PlutusTx
-import qualified PlutusTx.AssocMap              as AMap
-import qualified PlutusTx.Builtins              as BI
 import           PlutusTx.Prelude               as P hiding (Semigroup (..),
                                                       unless, (.))
-import           Prelude                        (IO, Semigroup (..), Show (..),
-                                                 String, print, putStrLn, (.))
-import           Wallet.Emulator.Wallet
+import           Prelude                        (IO, Semigroup (..), print, (.))
 
 {-
    Redeemers

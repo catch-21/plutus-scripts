@@ -10,43 +10,47 @@
 {-# OPTIONS_GHC -Wall #-}
 
 module Deadline
-  ( serialisedScript,
-    scriptSBS,
-    script,
-    writeSerialisedScript,
+  ( serialisedScriptV1,
+    scriptSBSV1,
+    scriptV1,
+    writeSerialisedScriptV1,
+    serialisedScriptV2,
+    scriptSBSV2,
+    scriptV2,
+    writeSerialisedScriptV2,
     runTrace,
   )
 where
 
-import           Cardano.Api                     (writeFileTextEnvelope)
-import           Cardano.Api.Shelley             (PlutusScript (PlutusScriptSerialised),
-                                                  PlutusScriptV1)
+import           Cardano.Api                    (PlutusScriptV2,
+                                                 writeFileTextEnvelope)
+import           Cardano.Api.Shelley            (PlutusScript (PlutusScriptSerialised),
+                                                 PlutusScriptV1)
 import           Codec.Serialise
-import           Control.Monad.Freer.Extras      as Extras
-import qualified Data.ByteString.Lazy            as LBS
-import qualified Data.ByteString.Short           as SBS
-import           Data.Functor                    (void)
-import           Data.Map                        as Map
-import           Data.Text                       (Text)
-import           Data.Void                       (Void)
+import qualified Data.ByteString.Lazy           as LBS
+import qualified Data.ByteString.Short          as SBS
+import           Data.Functor                   (void)
+import           Data.Map                       as Map
+import           Data.Text                      (Text)
+import           Data.Void                      (Void)
 import           Ledger
-import           Ledger.Ada                      as Ada
-import           Ledger.Constraints              as Constraints
-import           Ledger.Typed.Scripts.Validators as Scripts
-import           Plutus.Contract                 as Contract
-import qualified Plutus.Script.Utils.V1.Scripts  as PSU.V1
-import           Plutus.Trace.Emulator           as Emulator (EmulatorTrace,
-                                                              activateContractWallet,
-                                                              runEmulatorTraceIO,
-                                                              waitNSlots)
-import qualified Plutus.V1.Ledger.Api            as Ledger.Api
-import qualified Plutus.V1.Ledger.Scripts        as Plutus
+import           Ledger.Ada                     as Ada
+import           Ledger.Constraints             as Constraints
+import qualified Ledger.Typed.Scripts           as Scripts
+import           Plutus.Contract                as Contract
+import qualified Plutus.Script.Utils.V1.Scripts as PSU.V1
+import qualified Plutus.Script.Utils.V2.Scripts as PSU.V2
+import           Plutus.Trace.Emulator          as Emulator (EmulatorTrace,
+                                                             activateContractWallet,
+                                                             runEmulatorTraceIO,
+                                                             waitNSlots)
+import qualified Plutus.V1.Ledger.Api           as PlutusV1
+import qualified Plutus.V2.Ledger.Api           as PlutusV2
 import qualified PlutusTx
-import qualified PlutusTx.Builtins               as BI
-import           PlutusTx.Prelude                as P hiding (Semigroup (..),
-                                                       unless, (.))
-import           Prelude                         (IO, Semigroup (..), Show (..),
-                                                  String, putStrLn, (.))
+import           PlutusTx.Prelude               as P hiding (Semigroup (..),
+                                                      unless, (.))
+import           Prelude                        (IO, Semigroup (..), Show (..),
+                                                 String, (.))
 import           Wallet.Emulator.Wallet
 
 
@@ -100,18 +104,28 @@ instance Disp Integer where
    The timelocked validator script
 -}
 
-deadline :: POSIXTime
+deadline :: PlutusV1.POSIXTime
 deadline = 1596059095000 -- (milliseconds) transaction's valid range must be before this
 
-{-# INLINEABLE mkValidator #-}
-mkValidator :: POSIXTime -> () -> () -> ScriptContext -> Bool
-mkValidator dl _ _ ctx = traceError (decodeUtf8 (disp range "")) -- to dl `contains` range
+{-# INLINEABLE mkValidatorV1 #-}
+mkValidatorV1 :: PlutusV1.POSIXTime -> () -> () -> PlutusV1.ScriptContext -> Bool
+mkValidatorV1 dl _ _ ctx =  to dl `contains` range -- traceError (decodeUtf8 (disp range ""))
     where
-    info :: TxInfo
+    info :: PlutusV1.TxInfo
     info = scriptContextTxInfo ctx
 
-    range :: POSIXTimeRange
+    range :: PlutusV1.POSIXTimeRange
     range = txInfoValidRange info
+
+{-# INLINEABLE mkValidatorV2 #-}
+mkValidatorV2 :: PlutusV2.POSIXTime -> () -> () -> PlutusV2.ScriptContext -> Bool
+mkValidatorV2 dl _ _ ctx =  to dl `contains` range -- traceError (decodeUtf8 (disp range ""))
+    where
+    info :: PlutusV2.TxInfo
+    info = PlutusV2.scriptContextTxInfo ctx
+
+    range :: PlutusV2.POSIXTimeRange
+    range = PlutusV2.txInfoValidRange info
 
 {-
     As a validator
@@ -120,47 +134,65 @@ mkValidator dl _ _ ctx = traceError (decodeUtf8 (disp range "")) -- to dl `conta
 data DeadlineValidator
 instance Scripts.ValidatorTypes DeadlineValidator
 
-typedValidator :: POSIXTime -> Scripts.TypedValidator DeadlineValidator
-typedValidator = Scripts.mkTypedValidatorParam @DeadlineValidator
-    $$(PlutusTx.compile [||mkValidator||])
+typedValidatorV1 :: PlutusV1.POSIXTime -> Scripts.TypedValidator DeadlineValidator
+typedValidatorV1 = Scripts.mkTypedValidatorParam @DeadlineValidator
+    $$(PlutusTx.compile [||mkValidatorV1||])
     $$(PlutusTx.compile [|| wrap ||])
     where
         wrap = PSU.V1.mkUntypedValidator
+
+untypedValidatorV2 :: PlutusV2.POSIXTime -> PSU.V2.Validator -- There is not yet a way to make a V2 typed validator (PLT-494)
+untypedValidatorV2 t = PlutusV2.mkValidatorScript $
+    $$(PlutusTx.compile [|| PSU.V2.mkUntypedValidator . mkValidatorV2 ||])
+    `PlutusTx.applyCode`
+    PlutusTx.liftCode t
 
 {-
     As a Script
 -}
 
-script :: POSIXTime -> Validator
-script = Scripts.validatorScript . typedValidator
+scriptV1 :: POSIXTime -> Validator
+scriptV1 = Scripts.validatorScript . typedValidatorV1
+
+scriptV2 :: POSIXTime -> PSU.V2.Validator
+scriptV2 = untypedValidatorV2
 
 {-
    As a Short Byte String
 -}
 
-scriptSBS :: SBS.ShortByteString
-scriptSBS = SBS.toShort . LBS.toStrict $ serialise $ script deadline
+scriptSBSV1 :: SBS.ShortByteString
+scriptSBSV1 = SBS.toShort . LBS.toStrict $ serialise $ scriptV1 deadline
+
+scriptSBSV2 :: SBS.ShortByteString
+scriptSBSV2 = SBS.toShort . LBS.toStrict $ serialise $ scriptV2 deadline
 
 {-
    As a Serialised Script
 -}
 
-serialisedScript :: PlutusScript PlutusScriptV1
-serialisedScript = PlutusScriptSerialised scriptSBS
+serialisedScriptV1 :: PlutusScript PlutusScriptV1
+serialisedScriptV1 = PlutusScriptSerialised scriptSBSV1
 
-writeSerialisedScript :: IO ()
-writeSerialisedScript = void $ writeFileTextEnvelope "deadline.plutus" Nothing serialisedScript
+serialisedScriptV2 :: PlutusScript PlutusScriptV2
+serialisedScriptV2 = PlutusScriptSerialised scriptSBSV2
+
+writeSerialisedScriptV1 :: IO ()
+writeSerialisedScriptV1 = void $ writeFileTextEnvelope "deadline-V1.plutus" Nothing serialisedScriptV1
+
+writeSerialisedScriptV2 :: IO ()
+writeSerialisedScriptV2 = void $ writeFileTextEnvelope "deadline-V2.plutus" Nothing serialisedScriptV2
 
 {-
     Offchain Contract
 -}
 
 scrAddress :: Ledger.Address
-scrAddress = Scripts.validatorAddress $ typedValidator deadline
+scrAddress = Scripts.validatorAddress $ typedValidatorV1 deadline
 --scrAddress = Ledger.scriptHashAddress valHash
 
 valHash :: PSU.V1.ValidatorHash
-valHash = Scripts.validatorHash $ typedValidator deadline
+valHash = Scripts.validatorHash $ typedValidatorV1 deadline
 
 contract :: Contract () Empty Text ()
 contract = do
@@ -175,7 +207,7 @@ contract = do
     utxos <- utxosAt scrAddress
     let orefs = fst <$> Map.toList utxos
         lookups =
-            Constraints.otherScript (script deadline)
+            Constraints.otherScript (scriptV1 deadline)
             <> Constraints.unspentOutputs utxos
         tx2 =
             mconcat [Constraints.mustSpendScriptOutput oref unitRedeemer | oref <- orefs]

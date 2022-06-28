@@ -17,7 +17,6 @@ module TokenNamePolicy
     scriptV2,
     writeSerialisedScriptV1,
     writeSerialisedScriptV2,
-    --  , runTrace
   )
 where
 
@@ -30,7 +29,6 @@ import qualified Data.ByteString.Short          as SBS
 import           Data.Functor                   (void)
 import qualified Ledger.Typed.Scripts           as Scripts
 import           Ledger.Value                   as Value
-import           Plutus.Contract                as Contract
 import qualified Plutus.Script.Utils.V1.Scripts as PSU.V1
 import qualified Plutus.Script.Utils.V2.Scripts as PSU.V2
 import qualified Plutus.V1.Ledger.Api           as PlutusV1
@@ -38,7 +36,6 @@ import qualified Plutus.V1.Ledger.Contexts      as PlutusV1
 import qualified Plutus.V2.Ledger.Api           as PlutusV2
 import qualified Plutus.V2.Ledger.Contexts      as PlutusV2
 import qualified PlutusTx
-import qualified PlutusTx.Builtins              as BI
 import           PlutusTx.Prelude               as P hiding (Semigroup (..),
                                                       unless, (.))
 import           Prelude                        (IO, (.))

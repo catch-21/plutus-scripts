@@ -24,44 +24,31 @@ module CheckTxInDatumPolicyV1
     scriptSBS,
     script,
     writeSerialisedScript,
-    --  , runTrace
   )
 where
 
-import           Cardano.Api                         (writeFileTextEnvelope)
-import           Cardano.Api.Shelley                 (PlutusScript (..),
-                                                      PlutusScriptV2,
-                                                      ScriptDataJsonSchema (ScriptDataJsonDetailedSchema),
-                                                      fromPlutusData,
-                                                      scriptDataToJson)
+import           Cardano.Api                    (writeFileTextEnvelope)
+import           Cardano.Api.Shelley            (PlutusScript (..),
+                                                 PlutusScriptV2,
+                                                 ScriptDataJsonSchema (ScriptDataJsonDetailedSchema),
+                                                 fromPlutusData,
+                                                 scriptDataToJson)
 import           Codec.Serialise
-import           Data.Aeson                          as A
-import qualified Data.ByteString.Lazy                as LBS
-import qualified Data.ByteString.Short               as SBS
-import           Data.Functor                        (void)
-import qualified Data.Text.Internal.ByteStringCompat as BI
-import           Ledger.Ada                          as Ada
-import           Ledger.Constraints                  as Constraints
-import qualified Ledger.Typed.Scripts                as Scripts
-import           Ledger.Typed.Scripts.Validators
-import           Ledger.Value                        as Value
-import           Plutus.Contract                     as Contract
-import           Plutus.Contract.Schema              (Input)
-import qualified Plutus.Script.Utils.V1.Scripts      as PSU.V1
-import           Plutus.Trace.Emulator               as Emulator
-import qualified Plutus.V1.Ledger.Api                as PlutusV1
-import qualified Plutus.V1.Ledger.Contexts           as PlutusV1
-import qualified Plutus.V1.Ledger.Scripts            as PlutusV1
+import           Data.Aeson                     as A
+import qualified Data.ByteString.Lazy           as LBS
+import qualified Data.ByteString.Short          as SBS
+import           Data.Functor                   (void)
+import qualified Ledger.Typed.Scripts           as Scripts
+import qualified Plutus.Script.Utils.V1.Scripts as PSU.V1
+import qualified Plutus.V1.Ledger.Api           as PlutusV1
+import qualified Plutus.V1.Ledger.Contexts      as PlutusV1
+import qualified Plutus.V1.Ledger.Scripts       as PlutusV1
 import           Plutus.V1.Ledger.Tx
 import qualified PlutusTx
-import qualified PlutusTx.Builtins                   as BI
-import           PlutusTx.Prelude                    as P hiding
-                                                          (Semigroup (..),
-                                                           unless, (.))
-import           Prelude                             (IO, Semigroup (..),
-                                                      Show (..), String, print,
-                                                      putStrLn, (.))
-import           Wallet.Emulator.Wallet
+import           PlutusTx.Prelude               as P hiding (Semigroup (..),
+                                                      unless, (.))
+import           Prelude                        (IO, Semigroup (..), Show (..),
+                                                 print, (.))
 
 {-
    Define redeemer type to handle expected inline datum or datum hash at a txo
