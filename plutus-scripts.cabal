@@ -17,6 +17,8 @@ library
                      , DeadlineRedeemerPolicy
                      , TokenNamePolicy
                      , CheckDatumPolicy
+                     , CheckSameInlineDatumAtMultipleInputs
+                     , CheckSameInlineDatumAtAllInputs
                      , CheckReferenceInputs
                      , CheckReferenceScriptPolicy
                      , CheckRedeemersPolicy
