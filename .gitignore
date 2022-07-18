@@ -2,3 +2,5 @@ dist-newstyle
 *.plutus
 *.swp
 .vscode*
+
+cabal.nosystemd.project

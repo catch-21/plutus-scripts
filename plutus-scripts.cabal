@@ -10,7 +10,7 @@ Copyright:          © 2022 James Browning
 
 library
   hs-source-dirs:      src
-  exposed-modules:     UntypedHelloWorld,
+  exposed-modules:     UntypedHelloWorld
                      , AlwaysSucceeds
                      , TypedDatumRedeemer42
                      , Deadline
