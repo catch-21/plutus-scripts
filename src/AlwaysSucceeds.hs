@@ -9,10 +9,10 @@
 {-# LANGUAGE TypeOperators       #-}
 
 module AlwaysSucceeds
-  ( alwaysSuccedsSerialised,
-    alwaysSuccedsSBS,
-    writeAlwaysSuccedsScript,
-    writeAlwaysSuccedsScriptV2,
+  ( alwaysSucceedsSerialised,
+    alwaysSucceedsSBS,
+    writeAlwaysSucceedsScript,
+    writeAlwaysSucceedsScriptV2,
   )
 where
 
@@ -32,29 +32,29 @@ import           Prelude                  (IO, (.))
 
 
 {-# INLINEABLE mkValidator #-}
-mkValidator :: BuiltinData -> BuiltinData -> BuiltinData -> ()
-mkValidator _ _ _ = ()
+alwaysSucceeds :: BuiltinData -> BuiltinData -> BuiltinData -> ()
+alwaysSucceeds _ _ _ = ()
 
-alwaysSuccedsValidator :: Plutus.Validator
-alwaysSuccedsValidator = Plutus.mkValidatorScript $$(PlutusTx.compile [||mkValidator||])
-
-
-alwaysSuccedsScript :: Plutus.Script
-alwaysSuccedsScript = Plutus.unValidatorScript alwaysSuccedsValidator
+alwaysSucceedsValidator :: Plutus.Validator
+alwaysSucceedsValidator = Plutus.mkValidatorScript $$(PlutusTx.compile [|| alwaysSucceeds ||])
 
 
-alwaysSuccedsSBS :: SBS.ShortByteString
-alwaysSuccedsSBS = SBS.toShort . LBS.toStrict $ serialise alwaysSuccedsScript
+alwaysSucceedsScript :: Plutus.Script
+alwaysSucceedsScript = Plutus.unValidatorScript alwaysSucceedsValidator
 
 
-alwaysSuccedsSerialised :: PlutusScript PlutusScriptV1
-alwaysSuccedsSerialised = PlutusScriptSerialised alwaysSuccedsSBS
+alwaysSucceedsSBS :: SBS.ShortByteString
+alwaysSucceedsSBS = SBS.toShort . LBS.toStrict $ serialise alwaysSucceedsScript
 
-writeAlwaysSuccedsScript :: IO ()
-writeAlwaysSuccedsScript = void $ writeFileTextEnvelope "alwayssucceeds.plutus" Nothing alwaysSuccedsSerialised
+
+alwaysSucceedsSerialised :: PlutusScript PlutusScriptV1
+alwaysSucceedsSerialised = PlutusScriptSerialised alwaysSucceedsSBS
+
+writeAlwaysSucceedsScript :: IO ()
+writeAlwaysSucceedsScript = void $ writeFileTextEnvelope "alwayssucceeds.plutus" Nothing alwaysSucceedsSerialised
 
 alwaysSuccedsSerialisedV2 :: PlutusScript PlutusScriptV2
 alwaysSuccedsSerialisedV2 = PlutusScriptSerialised alwaysSuccedsSBS
 
-writeAlwaysSuccedsScriptV2 :: IO ()
-writeAlwaysSuccedsScriptV2 = void $ writeFileTextEnvelope "alwayssucceeds-v2.plutus" Nothing alwaysSuccedsSerialisedV2
+writeAlwaysSucceedsScriptV2 :: IO ()
+writeAlwaysSucceedsScriptV2 = void $ writeFileTextEnvelope "alwayssucceeds-v2.plutus" Nothing alwaysSucceedsSerialisedV2
