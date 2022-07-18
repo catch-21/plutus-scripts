@@ -9,10 +9,10 @@
 {-# LANGUAGE TypeOperators       #-}
 
 module AlwaysSucceeds
-  ( helloWorldSerialised,
-    helloWorldSBS,
-    writeHelloWorldScript,
-    writeHelloWorldScriptV2,
+  ( alwaysSuccedsSerialised,
+    alwaysSuccedsSBS,
+    writeAlwaysSuccedsScript,
+    writeAlwaysSuccedsScriptV2,
   )
 where
 
