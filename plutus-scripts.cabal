@@ -29,6 +29,10 @@ library
                      , CountReferenceInputsPolicy
                      , CheckTxInDatumPolicyV1
                      , NFTMint
+                     , ValidRangeEquivilance
+                     , TxInfoDataEquivalence
+                     , EcdsaSecp256k1Validator
+                     , SchnorrSecp256k1Validator
   build-depends:       aeson
                      , base ^>=4.14.1.0
                      , bytestring
