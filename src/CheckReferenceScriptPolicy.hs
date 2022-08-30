@@ -24,30 +24,32 @@ module CheckReferenceScriptPolicy
   )
 where
 
-import           Cardano.Api                    (PlutusScript (..),
-                                                 PlutusScriptV2,
-                                                 ScriptDataJsonSchema (ScriptDataJsonDetailedSchema),
-                                                 scriptDataToJson,
-                                                 writeFileTextEnvelope)
-import           Cardano.Api.Shelley            (PlutusScript (PlutusScriptSerialised),
-                                                 fromPlutusData)
+import           Cardano.Api                          (PlutusScript (..),
+                                                       PlutusScriptV2,
+                                                       ScriptDataJsonSchema (ScriptDataJsonDetailedSchema),
+                                                       scriptDataToJson,
+                                                       writeFileTextEnvelope)
+import           Cardano.Api.Shelley                  (PlutusScript (PlutusScriptSerialised),
+                                                       fromPlutusData)
 import           Codec.Serialise
-import           Data.Aeson                     as A
-import qualified Data.ByteString.Lazy           as LBS
-import qualified Data.ByteString.Short          as SBS
-import           Data.Functor                   (void)
+import           Data.Aeson                           as A
+import qualified Data.ByteString.Lazy                 as LBS
+import qualified Data.ByteString.Short                as SBS
+import           Data.Functor                         (void)
 import           Ledger
-import qualified Ledger.Typed.Scripts           as Scripts
-import qualified Plutus.Script.Utils.V2.Scripts as PSU.V2
-import           Plutus.V2.Ledger.Api           (toData)
-import qualified Plutus.V2.Ledger.Api           as PlutusV2
-import qualified Plutus.V2.Ledger.Contexts      as PlutusV2
-import           PlutusTx                       (CompiledCode)
+import qualified Ledger.Typed.Scripts                 as Scripts
+import qualified Plutus.Script.Utils.V2.Scripts       as PSU.V2
+import qualified Plutus.Script.Utils.V2.Typed.Scripts as PSU.V2
+import           Plutus.V2.Ledger.Api                 (toData)
+import qualified Plutus.V2.Ledger.Api                 as PlutusV2
+import qualified Plutus.V2.Ledger.Contexts            as PlutusV2
+import           PlutusTx                             (CompiledCode)
 import qualified PlutusTx
-import           PlutusTx.Prelude               as P hiding (Semigroup (..),
-                                                      unless, (.))
-import           Prelude                        (IO, Semigroup (..), Show (..),
-                                                 print, (.))
+import           PlutusTx.Prelude                     as P hiding
+                                                           (Semigroup (..),
+                                                            unless, (.))
+import           Prelude                              (IO, Semigroup (..),
+                                                       Show (..), print, (.))
 
 {-
    Define redeemer type to handle expected inline datum or datum hash at a txo
@@ -76,7 +78,7 @@ redeemer = ExpRefScript { txOutRef  = TxOutRef {txOutRefId = "b204b4554a827178b4
                         , inputType = RegularInput
                         }
 
-printRedeemer = print $ "Redeemer: " <> A.encode (scriptDataToJson ScriptDataJsonDetailedSchema $ fromPlutusData $ toData redeemer)
+printRedeemer = print $ "Redeemer: " <> A.encode (scriptDataToJson ScriptDataJsonDetailedSchema $ fromPlutusData $ toData policyScriptHash)
 
 {-
    The validator script

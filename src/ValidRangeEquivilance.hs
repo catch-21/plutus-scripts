@@ -26,33 +26,36 @@ module ValidRangeEquivilance
     printScriptDataV2
   ) where
 
-import           Cardano.Api                    (PlutusScriptV1, PlutusScriptV2,
-                                                 ScriptData,
-                                                 ScriptDataJsonSchema (ScriptDataJsonDetailedSchema),
-                                                 scriptDataToJson,
-                                                 writeFileTextEnvelope)
-import           Cardano.Api.Shelley            (PlutusScript (..),
-                                                 fromPlutusData)
+import           Cardano.Api                          (PlutusScriptV1,
+                                                       PlutusScriptV2,
+                                                       ScriptData,
+                                                       ScriptDataJsonSchema (ScriptDataJsonDetailedSchema),
+                                                       scriptDataToJson,
+                                                       writeFileTextEnvelope)
+import           Cardano.Api.Shelley                  (PlutusScript (..),
+                                                       fromPlutusData)
 import           Codec.Serialise
-import qualified Data.Aeson                     as A
-import qualified Data.ByteString.Lazy           as LBS
-import qualified Data.ByteString.Short          as SBS
-import           Data.Functor                   (void)
-import           Data.Text.Internal.Fusion.Size (upperBound)
-import           Ledger                         (Interval (ivTo), ScriptPurpose)
-import qualified Ledger.Typed.Scripts           as Scripts
-import qualified Plutus.Script.Utils.V1.Scripts as PSU.V1
-import qualified Plutus.Script.Utils.V2.Scripts as PSU.V2
-import qualified Plutus.V1.Ledger.Api           as PlutusV1
-import qualified Plutus.V1.Ledger.Api           as V2PlutusV2
-import qualified Plutus.V1.Ledger.Interval      as PlutusV1
-import qualified Plutus.V2.Ledger.Api           as PlutusV2
+import qualified Data.Aeson                           as A
+import qualified Data.ByteString.Lazy                 as LBS
+import qualified Data.ByteString.Short                as SBS
+import           Data.Functor                         (void)
+import           Data.Text.Internal.Fusion.Size       (upperBound)
+import           Ledger                               (Interval (ivTo),
+                                                       ScriptPurpose)
+import qualified Ledger.Typed.Scripts                 as Scripts
+import qualified Plutus.Script.Utils.V1.Typed.Scripts as PSU.V1
+import qualified Plutus.Script.Utils.V2.Typed.Scripts as PSU.V2
+import qualified Plutus.V1.Ledger.Api                 as PlutusV1
+import qualified Plutus.V1.Ledger.Api                 as V2PlutusV2
+import qualified Plutus.V1.Ledger.Interval            as PlutusV1
+import qualified Plutus.V2.Ledger.Api                 as PlutusV2
 import qualified PlutusTx
-import           PlutusTx.AssocMap              (Map)
-import           PlutusTx.Prelude               as P hiding (Semigroup (..),
-                                                      unless, (.))
-import           Prelude                        (IO, Semigroup ((<>)), Show,
-                                                 print, (.))
+import           PlutusTx.AssocMap                    (Map)
+import           PlutusTx.Prelude                     as P hiding
+                                                           (Semigroup (..),
+                                                            unless, (.))
+import           Prelude                              (IO, Semigroup ((<>)),
+                                                       Show, print, (.))
 
 data PV1CustomRedeemer
   = PV1CustomRedeemer

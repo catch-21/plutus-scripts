@@ -27,28 +27,31 @@ module CheckTxInDatumPolicyV1
   )
 where
 
-import           Cardano.Api                    (writeFileTextEnvelope)
-import           Cardano.Api.Shelley            (PlutusScript (..),
-                                                 PlutusScriptV2,
-                                                 ScriptDataJsonSchema (ScriptDataJsonDetailedSchema),
-                                                 fromPlutusData,
-                                                 scriptDataToJson)
+import           Cardano.Api                          (writeFileTextEnvelope)
+import           Cardano.Api.Shelley                  (PlutusScript (..),
+                                                       PlutusScriptV2,
+                                                       ScriptDataJsonSchema (ScriptDataJsonDetailedSchema),
+                                                       fromPlutusData,
+                                                       scriptDataToJson)
 import           Codec.Serialise
-import           Data.Aeson                     as A
-import qualified Data.ByteString.Lazy           as LBS
-import qualified Data.ByteString.Short          as SBS
-import           Data.Functor                   (void)
-import qualified Ledger.Typed.Scripts           as Scripts
-import qualified Plutus.Script.Utils.V1.Scripts as PSU.V1
-import qualified Plutus.V1.Ledger.Api           as PlutusV1
-import qualified Plutus.V1.Ledger.Contexts      as PlutusV1
-import qualified Plutus.V1.Ledger.Scripts       as PlutusV1
+import           Data.Aeson                           as A
+import qualified Data.ByteString.Lazy                 as LBS
+import qualified Data.ByteString.Short                as SBS
+import           Data.Functor                         (void)
+import qualified Ledger.Typed.Scripts                 as Scripts
+import qualified Plutus.Script.Utils.Scripts          as PSU
+import qualified Plutus.Script.Utils.V1.Scripts       as PSU.V1
+import qualified Plutus.Script.Utils.V1.Typed.Scripts as PSU.V1
+import qualified Plutus.V1.Ledger.Api                 as PlutusV1
+import qualified Plutus.V1.Ledger.Contexts            as PlutusV1
+import qualified Plutus.V1.Ledger.Scripts             as PlutusV1
 import           Plutus.V1.Ledger.Tx
 import qualified PlutusTx
-import           PlutusTx.Prelude               as P hiding (Semigroup (..),
-                                                      unless, (.))
-import           Prelude                        (IO, Semigroup (..), Show (..),
-                                                 print, (.))
+import           PlutusTx.Prelude                     as P hiding
+                                                           (Semigroup (..),
+                                                            unless, (.))
+import           Prelude                              (IO, Semigroup (..),
+                                                       Show (..), print, (.))
 
 {-
    Define redeemer type to handle expected inline datum or datum hash at a txo
@@ -81,7 +84,7 @@ text = "check_ref_inputs"
 
 myDatum = PlutusV1.Datum $ PlutusTx.dataToBuiltinData $ PlutusTx.toData fortyTwo
 
-myDatumHash = PSU.V1.datumHash myDatum
+myDatumHash = PSU.datumHash myDatum
 
 {-
    Redeemers

@@ -23,26 +23,28 @@ module CheckSameInlineDatumAtMultipleInputs
   )
 where
 
-import           Cardano.Api                    (writeFileTextEnvelope)
-import           Cardano.Api.Shelley            (PlutusScript (..),
-                                                 PlutusScriptV2,
-                                                 ScriptDataJsonSchema (ScriptDataJsonDetailedSchema),
-                                                 fromPlutusData,
-                                                 scriptDataToJson)
+import           Cardano.Api                          (writeFileTextEnvelope)
+import           Cardano.Api.Shelley                  (PlutusScript (..),
+                                                       PlutusScriptV2,
+                                                       ScriptDataJsonSchema (ScriptDataJsonDetailedSchema),
+                                                       fromPlutusData,
+                                                       scriptDataToJson)
 import           Codec.Serialise
-import           Data.Aeson                     as A
-import qualified Data.ByteString.Lazy           as LBS
-import qualified Data.ByteString.Short          as SBS
-import           Data.Functor                   (void)
-import qualified Ledger.Typed.Scripts           as Scripts
-import qualified Plutus.Script.Utils.V2.Scripts as PSU.V2
-import qualified Plutus.V2.Ledger.Api           as PlutusV2
-import qualified Plutus.V2.Ledger.Contexts      as PlutusV2
+import           Data.Aeson                           as A
+import qualified Data.ByteString.Lazy                 as LBS
+import qualified Data.ByteString.Short                as SBS
+import           Data.Functor                         (void)
+import qualified Ledger.Typed.Scripts                 as Scripts
+import qualified Plutus.Script.Utils.V2.Typed.Scripts as PSU.V2
+import qualified Plutus.V2.Ledger.Api                 as PlutusV2
+import qualified Plutus.V2.Ledger.Contexts            as PlutusV2
 import           Plutus.V2.Ledger.Tx
 import qualified PlutusTx
-import           PlutusTx.Prelude               as P hiding (Semigroup (..),
-                                                      unless, (.))
-import           Prelude                        (IO, Semigroup (..), print, (.))
+import           PlutusTx.Prelude                     as P hiding
+                                                           (Semigroup (..),
+                                                            unless, (.))
+import           Prelude                              (IO, Semigroup (..),
+                                                       print, (.))
 
 {-
    Expected inline datum to use in redeemer

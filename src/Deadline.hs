@@ -22,35 +22,37 @@ module Deadline
   )
 where
 
-import           Cardano.Api                    (PlutusScriptV2,
-                                                 writeFileTextEnvelope)
-import           Cardano.Api.Shelley            (PlutusScript (PlutusScriptSerialised),
-                                                 PlutusScriptV1)
+import           Cardano.Api                          (PlutusScriptV2,
+                                                       writeFileTextEnvelope)
+import           Cardano.Api.Shelley                  (PlutusScript (PlutusScriptSerialised),
+                                                       PlutusScriptV1)
 import           Codec.Serialise
-import qualified Data.ByteString.Lazy           as LBS
-import qualified Data.ByteString.Short          as SBS
-import           Data.Functor                   (void)
-import           Data.Map                       as Map
-import           Data.Text                      (Text)
-import           Data.Void                      (Void)
+import qualified Data.ByteString.Lazy                 as LBS
+import qualified Data.ByteString.Short                as SBS
+import           Data.Functor                         (void)
+import           Data.Map                             as Map
+import           Data.Text                            (Text)
+import           Data.Void                            (Void)
 import           Ledger
-import           Ledger.Ada                     as Ada
-import           Ledger.Constraints             as Constraints
-import qualified Ledger.Typed.Scripts           as Scripts
-import           Plutus.Contract                as Contract
-import qualified Plutus.Script.Utils.V1.Scripts as PSU.V1
-import qualified Plutus.Script.Utils.V2.Scripts as PSU.V2
-import           Plutus.Trace.Emulator          as Emulator (EmulatorTrace,
-                                                             activateContractWallet,
-                                                             runEmulatorTraceIO,
-                                                             waitNSlots)
-import qualified Plutus.V1.Ledger.Api           as PlutusV1
-import qualified Plutus.V2.Ledger.Api           as PlutusV2
+import           Ledger.Ada                           as Ada
+import           Ledger.Constraints                   as Constraints
+import qualified Ledger.Typed.Scripts                 as Scripts
+import           Plutus.Contract                      as Contract
+import qualified Plutus.Script.Utils.V1.Scripts       as PSU.V1
+import qualified Plutus.Script.Utils.V1.Typed.Scripts as PSU.V1
+import qualified Plutus.Script.Utils.V2.Typed.Scripts as PSU.V2
+import           Plutus.Trace.Emulator                as Emulator (EmulatorTrace,
+                                                                   activateContractWallet,
+                                                                   runEmulatorTraceIO,
+                                                                   waitNSlots)
+import qualified Plutus.V1.Ledger.Api                 as PlutusV1
+import qualified Plutus.V2.Ledger.Api                 as PlutusV2
 import qualified PlutusTx
-import           PlutusTx.Prelude               as P hiding (Semigroup (..),
-                                                      unless, (.))
-import           Prelude                        (IO, Semigroup (..), Show (..),
-                                                 String, (.))
+import           PlutusTx.Prelude                     as P hiding
+                                                           (Semigroup (..),
+                                                            unless, (.))
+import           Prelude                              (IO, Semigroup (..),
+                                                       Show (..), String, (.))
 import           Wallet.Emulator.Wallet
 
 
@@ -207,7 +209,7 @@ contract = do
     utxos <- utxosAt scrAddress
     let orefs = fst <$> Map.toList utxos
         lookups =
-            Constraints.otherScript (scriptV1 deadline)
+            Constraints.plutusV1OtherScript (scriptV1 deadline)
             <> Constraints.unspentOutputs utxos
         tx2 =
             mconcat [Constraints.mustSpendScriptOutput oref unitRedeemer | oref <- orefs]

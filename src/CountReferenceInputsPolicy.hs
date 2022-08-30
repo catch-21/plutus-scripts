@@ -21,20 +21,22 @@ module CountReferenceInputsPolicy
   )
 where
 
-import           Cardano.Api                    (PlutusScript, PlutusScriptV2,
-                                                 writeFileTextEnvelope)
-import           Cardano.Api.Shelley            (PlutusScript (..))
+import           Cardano.Api                          (PlutusScript,
+                                                       PlutusScriptV2,
+                                                       writeFileTextEnvelope)
+import           Cardano.Api.Shelley                  (PlutusScript (..))
 import           Codec.Serialise
-import qualified Data.ByteString.Lazy           as LBS
-import qualified Data.ByteString.Short          as SBS
-import           Data.Functor                   (void)
-import qualified Ledger.Typed.Scripts           as Scripts
-import qualified Plutus.Script.Utils.V2.Scripts as PSU.V2
-import qualified Plutus.V2.Ledger.Api           as PlutusV2
+import qualified Data.ByteString.Lazy                 as LBS
+import qualified Data.ByteString.Short                as SBS
+import           Data.Functor                         (void)
+import qualified Ledger.Typed.Scripts                 as Scripts
+import qualified Plutus.Script.Utils.V2.Typed.Scripts as PSU.V2
+import qualified Plutus.V2.Ledger.Api                 as PlutusV2
 import qualified PlutusTx
-import           PlutusTx.Prelude               as P hiding (Semigroup (..),
-                                                      unless, (.))
-import           Prelude                        (IO, (.))
+import           PlutusTx.Prelude                     as P hiding
+                                                           (Semigroup (..),
+                                                            unless, (.))
+import           Prelude                              (IO, (.))
 
 {-
    The validator script

@@ -17,28 +17,34 @@ module TokenNamePolicy
     scriptV2,
     writeSerialisedScriptV1,
     writeSerialisedScriptV2,
+    printPIRV2
   )
 where
 
-import           Cardano.Api                    (PlutusScriptV1, PlutusScriptV2,
-                                                 writeFileTextEnvelope)
-import           Cardano.Api.Shelley            (PlutusScript (..))
+import           Cardano.Api                          (PlutusScriptV1,
+                                                       PlutusScriptV2,
+                                                       writeFileTextEnvelope)
+import           Cardano.Api.Shelley                  (PlutusScript (..))
 import           Codec.Serialise
-import qualified Data.ByteString.Lazy           as LBS
-import qualified Data.ByteString.Short          as SBS
-import           Data.Functor                   (void)
-import qualified Ledger.Typed.Scripts           as Scripts
-import           Ledger.Value                   as Value
-import qualified Plutus.Script.Utils.V1.Scripts as PSU.V1
-import qualified Plutus.Script.Utils.V2.Scripts as PSU.V2
-import qualified Plutus.V1.Ledger.Api           as PlutusV1
-import qualified Plutus.V1.Ledger.Contexts      as PlutusV1
-import qualified Plutus.V2.Ledger.Api           as PlutusV2
-import qualified Plutus.V2.Ledger.Contexts      as PlutusV2
+import qualified Data.ByteString.Lazy                 as LBS
+import qualified Data.ByteString.Short                as SBS
+import           Data.Functor                         (void)
+import           Data.Maybe                           (fromJust)
+import qualified Ledger.Typed.Scripts                 as Scripts
+import           Ledger.Value                         as Value
+import qualified Plutus.Script.Utils.V1.Typed.Scripts as PSU.V1
+import qualified Plutus.Script.Utils.V2.Typed.Scripts as PSU.V2
+import qualified Plutus.V1.Ledger.Api                 as PlutusV1
+import qualified Plutus.V1.Ledger.Contexts            as PlutusV1
+import qualified Plutus.V2.Ledger.Api                 as PlutusV2
+import qualified Plutus.V2.Ledger.Contexts            as PlutusV2
+import           PlutusTx                             (getPir)
 import qualified PlutusTx
-import           PlutusTx.Prelude               as P hiding (Semigroup (..),
-                                                      unless, (.))
-import           Prelude                        (IO, (.))
+import           PlutusTx.Prelude                     as P hiding
+                                                           (Semigroup (..),
+                                                            unless, (.))
+import           Prelude                              (IO, (.))
+import           Prettyprinter.Extras                 (pretty)
 
 {-
    The validator script (checks redeemer token name is used for minting)
@@ -73,6 +79,8 @@ policyV1 = PlutusV1.mkMintingPolicyScript $$(PlutusTx.compile [|| PSU.V1.mkUntyp
 
 policyV2 :: Scripts.MintingPolicy
 policyV2 = PlutusV2.mkMintingPolicyScript $$(PlutusTx.compile [|| PSU.V2.mkUntypedMintingPolicy tokenNamePolicyV2 ||])
+
+printPIRV2 = pretty $ fromJust $ getPir $$(PlutusTx.compile [|| PSU.V2.mkUntypedMintingPolicy tokenNamePolicyV2 ||])
 
 {-
     As a Script

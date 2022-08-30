@@ -16,33 +16,35 @@ module TypedDatumRedeemer42
   )
 where
 
-import           Cardano.Api                      (writeFileTextEnvelope)
-import           Cardano.Api.Shelley              (PlutusScript (PlutusScriptSerialised),
-                                                   PlutusScriptV1)
+import           Cardano.Api                          (writeFileTextEnvelope)
+import           Cardano.Api.Shelley                  (PlutusScript (PlutusScriptSerialised),
+                                                       PlutusScriptV1)
 
 import           Codec.Serialise
-import qualified Data.ByteString.Lazy             as LBS
-import qualified Data.ByteString.Short            as SBS
-import           Data.Functor                     (void)
-import           Data.Map                         as Map
-import           Data.Text                        (Text)
-import           Data.Void                        (Void)
+import qualified Data.ByteString.Lazy                 as LBS
+import qualified Data.ByteString.Short                as SBS
+import           Data.Functor                         (void)
+import           Data.Map                             as Map
+import           Data.Text                            (Text)
+import           Data.Void                            (Void)
 import           Ledger
-import           Ledger.Ada                       as Ada
-import           Ledger.Constraints               as Constraints
-import           Ledger.Constraints.TxConstraints as TxConstraints
-import qualified Ledger.Typed.Scripts             as Scripts
+import           Ledger.Ada                           as Ada
+import           Ledger.Constraints                   as Constraints
+import           Ledger.Constraints.TxConstraints     as TxConstraints
+import qualified Ledger.Typed.Scripts                 as Scripts
 import           Ledger.Typed.Scripts.Validators
-import           Plutus.Contract                  as Contract
-import qualified Plutus.Script.Utils.V1.Scripts   as PSU.V1
-import           Plutus.Trace.Emulator            as Emulator
-import qualified Plutus.V1.Ledger.Scripts         as Plutus
+import           Plutus.Contract                      as Contract
+import qualified Plutus.Script.Utils.V1.Scripts       as PSU.V1
+import qualified Plutus.Script.Utils.V1.Typed.Scripts as PSU.V1
+import           Plutus.Trace.Emulator                as Emulator
+import qualified Plutus.V1.Ledger.Scripts             as Plutus
 import qualified PlutusTx
-import qualified PlutusTx.Builtins                as BI
-import           PlutusTx.Prelude                 as P hiding (Semigroup (..),
-                                                        unless, (.))
-import           Prelude                          (IO, Semigroup (..), String,
-                                                   (.))
+import qualified PlutusTx.Builtins                    as BI
+import           PlutusTx.Prelude                     as P hiding
+                                                           (Semigroup (..),
+                                                            unless, (.))
+import           Prelude                              (IO, Semigroup (..),
+                                                       String, (.))
 import           Wallet.Emulator.Wallet
 
 {-
@@ -122,7 +124,7 @@ datumRedeemer42Contract = do
     utxos <- utxosAt scrAddress
     let orefs = fst <$> Map.toList utxos
         lookups =
-            Constraints.otherScript datumRedeemer42Validator
+            Constraints.plutusV1OtherScript datumRedeemer42Validator
             <> Constraints.unspentOutputs utxos
         tx2 =
             mconcat [Constraints.mustSpendScriptOutput oref (Plutus.Redeemer $ BI.mkI 42) | oref <- orefs]
