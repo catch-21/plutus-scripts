@@ -48,17 +48,21 @@ import           Prelude                              (IO, Semigroup (..),
                                                        Show (..), print, (.))
 
 data NFTParams = NFTParams --  doesn't need more than the TxOutRef
-    { --mpTokenName :: !Plutus.TokenName
-      mpAmount   :: !Integer
-    , mpTxOutRef :: !PlutusV2.TxOutRef
+    { mpTokenName :: !PlutusV2.TokenName
+    , mpAmount    :: !Integer
+    , mpTxOutRef  :: !PlutusV2.TxOutRef
     --, mpPubKeyHs  :: !Plutus.PubKeyHash
     } deriving Show
 
 PlutusTx.makeLift ''NFTParams
 PlutusTx.unstableMakeIsData ''NFTParams
 
+tn :: PlutusV1.TokenName  -- << 2. added helper function definition
+tn = PlutusV1.TokenName "test" -- << 3. and here function body
+
 redeemer :: NFTParams
-redeemer = NFTParams { mpAmount = 1,
+redeemer = NFTParams { mpTokenName = tn,  -- << 4. added tn to param
+                       mpAmount = 1,
                        mpTxOutRef = PlutusV2.TxOutRef {txOutRefId = "82669eddc629c8ce5cc3cb908cec6de339281bb0a0ec111880ff0936132ac8b0", txOutRefIdx = 0}
                      }
 
