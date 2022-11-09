@@ -33,6 +33,8 @@ library
                      , TxInfoDataEquivalence
                      , EcdsaSecp256k1Validator
                      , SchnorrSecp256k1Validator
+                     , EcdsaSecp256k1LoopValidator
+                     , SchnorrSecp256k1LoopValidator
   build-depends:       aeson
                      , base ^>=4.14.1.0
                      , bytestring
