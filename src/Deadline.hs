@@ -141,11 +141,11 @@ typedValidatorV1 = Scripts.mkTypedValidatorParam @DeadlineValidator
     $$(PlutusTx.compile [||mkValidatorV1||])
     $$(PlutusTx.compile [|| wrap ||])
     where
-        wrap = PSU.V1.mkUntypedValidator
+        wrap = Scripts.mkUntypedValidator
 
 untypedValidatorV2 :: PlutusV2.POSIXTime -> PSU.V2.Validator -- There is not yet a way to make a V2 typed validator (PLT-494)
 untypedValidatorV2 t = PlutusV2.mkValidatorScript $
-    $$(PlutusTx.compile [|| PSU.V2.mkUntypedValidator . mkValidatorV2 ||])
+    $$(PlutusTx.compile [|| Scripts.mkUntypedValidator . mkValidatorV2 ||])
     `PlutusTx.applyCode`
     PlutusTx.liftCode t
 
@@ -213,7 +213,7 @@ contract = do
             <> Constraints.unspentOutputs utxos
         tx2 =
             mconcat [Constraints.mustSpendScriptOutput oref unitRedeemer | oref <- orefs]
-            <> Constraints.mustIncludeDatum unitDatum
+            <> Constraints.mustIncludeDatumInTx unitDatum
             <> Constraints.mustValidateIn (from $ now - 1000) -- FAILS
     ledgerTx2 <- submitTxConstraintsWith @Void lookups tx2
     Contract.logInfo @String $ "waiting for tx2 confirmed..."

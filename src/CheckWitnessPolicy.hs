@@ -61,10 +61,10 @@ expectedWitnessPolicy pkh ctx = PlutusV2.txSignedBy info pkh
 compiledCode :: CompiledCode (BuiltinData -> BuiltinData -> ())
 compiledCode = $$(PlutusTx.compile [|| wrap ||])
     where
-        wrap = PSU.V2.mkUntypedMintingPolicy expectedWitnessPolicy
+        wrap = Scripts.mkUntypedMintingPolicy expectedWitnessPolicy
 
 policyScriptHash :: ScriptHash
-policyScriptHash = scriptHash $ fromCompiledCode compiledCode
+policyScriptHash = PSU.V2.scriptHash $ fromCompiledCode compiledCode
 
 policy :: Scripts.MintingPolicy
 policy = PlutusV2.mkMintingPolicyScript compiledCode

@@ -57,7 +57,7 @@ mkPolicyV1 dl ctx = PlutusV1.to dl `PlutusV1.contains` range -- transaction's va
     range = PlutusV1.txInfoValidRange info
 
 policyV1 :: Scripts.MintingPolicy
-policyV1 = PlutusV1.mkMintingPolicyScript $$(PlutusTx.compile [|| PSU.V1.mkUntypedMintingPolicy mkPolicyV1 ||])
+policyV1 = PlutusV1.mkMintingPolicyScript $$(PlutusTx.compile [|| Scripts.mkUntypedMintingPolicy mkPolicyV1 ||])
 
 scriptV1 :: PlutusV1.Script
 scriptV1 = PlutusV1.unMintingPolicyScript policyV1
@@ -84,7 +84,7 @@ mkPolicyV2 dl ctx = PlutusV2.to dl `PlutusV1.contains` range -- there's no Plutu
     range = PlutusV2.txInfoValidRange info
 
 policyV2 :: Scripts.MintingPolicy
-policyV2 = PlutusV2.mkMintingPolicyScript $$(PlutusTx.compile [|| PSU.V2.mkUntypedMintingPolicy mkPolicyV2 ||])
+policyV2 = PlutusV2.mkMintingPolicyScript $$(PlutusTx.compile [|| Scripts.mkUntypedMintingPolicy mkPolicyV2 ||])
 
 scriptV2 :: PlutusV1.Script
 scriptV2 = PlutusV1.unMintingPolicyScript policyV2

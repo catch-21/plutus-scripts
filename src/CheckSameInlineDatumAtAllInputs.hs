@@ -80,7 +80,7 @@ expectedDatumHashPolicy dh ctx = traceIfFalse "Unexpected datum hash at each ref
 
 policy :: Scripts.MintingPolicy
 policy = PlutusV2.mkMintingPolicyScript
-        $$(PlutusTx.compile [||PSU.V2.mkUntypedMintingPolicy expectedDatumHashPolicy||])
+        $$(PlutusTx.compile [||Scripts.mkUntypedMintingPolicy expectedDatumHashPolicy||])
 {-
     As a Script
 -}

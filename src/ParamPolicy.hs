@@ -80,7 +80,7 @@ paramsPolicy bs expRedeemers ctx =  True
 -- Example of how to paramaterise minting policy
 policy :: BuiltinByteString -> Scripts.MintingPolicy
 policy s = PlutusV2.mkMintingPolicyScript $
-        $$(PlutusTx.compile [||PSU.V2.mkUntypedMintingPolicy . paramsPolicy||])
+        $$(PlutusTx.compile [||Scripts.mkUntypedMintingPolicy . paramsPolicy||])
         `PlutusTx.applyCode`
         PlutusTx.liftCode s
 

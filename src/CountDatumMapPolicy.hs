@@ -58,7 +58,7 @@ countDatumsPolicy n ctx =  traceIfFalse "Number of datums in txInfoData map does
 policy :: Scripts.MintingPolicy
 policy = PlutusV2.mkMintingPolicyScript $$(PlutusTx.compile [||wrap||])
     where
-        wrap = PSU.V2.mkUntypedMintingPolicy countDatumsPolicy
+        wrap = Scripts.mkUntypedMintingPolicy countDatumsPolicy
 
 {-
     As a Script

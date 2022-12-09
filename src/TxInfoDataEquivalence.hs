@@ -87,7 +87,7 @@ checkDatumsPolicy expDatumMap ctx =  traceIfFalse "Datums and hashes in txInfoDa
 policy :: Scripts.MintingPolicy
 policy = PlutusV2.mkMintingPolicyScript $$(PlutusTx.compile [||wrap||])
     where
-        wrap = PSU.V2.mkUntypedMintingPolicy checkDatumsPolicy
+        wrap = Scripts.mkUntypedMintingPolicy checkDatumsPolicy
 
 {-
     As a Script

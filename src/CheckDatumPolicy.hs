@@ -166,7 +166,7 @@ expectedInlinePolicy expInline ctx =
 compiledCode :: PlutusTx.CompiledCode (BuiltinData -> BuiltinData -> ())
 compiledCode = $$(PlutusTx.compile [|| wrap ||])
      where
-         wrap = PSU.V2.mkUntypedMintingPolicy expectedInlinePolicy
+         wrap = Scripts.mkUntypedMintingPolicy expectedInlinePolicy
 
 policy :: Scripts.MintingPolicy
 policy = PlutusV2.mkMintingPolicyScript compiledCode

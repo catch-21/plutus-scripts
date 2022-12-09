@@ -136,7 +136,7 @@ mkPolicyV1 (PV2CustomRedeemer _ r) ctx = r /= PlutusV1.txInfoValidRange (PlutusV
 policyV1 :: Scripts.MintingPolicy
 policyV1 = PlutusV1.mkMintingPolicyScript $$(PlutusTx.compile [|| wrap ||])
   where
-    wrap = PSU.V1.mkUntypedMintingPolicy mkPolicyV1
+    wrap = Scripts.mkUntypedMintingPolicy mkPolicyV1
 
 scriptV1 :: PlutusV1.Script
 scriptV1 = PlutusV1.unMintingPolicyScript policyV1
@@ -165,7 +165,7 @@ mkPolicyV2 (PV2CustomRedeemer _ r) _ = PlutusV2.ivFrom r == PlutusV2.ivFrom r
 policyV2 :: Scripts.MintingPolicy
 policyV2 = PlutusV2.mkMintingPolicyScript $$(PlutusTx.compile [|| wrap ||])
   where
-    wrap = PSU.V2.mkUntypedMintingPolicy mkPolicyV2
+    wrap = Scripts.mkUntypedMintingPolicy mkPolicyV2
 
 scriptV2 :: PlutusV1.Script
 scriptV2 = PlutusV1.unMintingPolicyScript policyV2

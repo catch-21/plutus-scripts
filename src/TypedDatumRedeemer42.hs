@@ -72,7 +72,7 @@ typedValidator =
     $$(PlutusTx.compile [||mkValidator||])
     $$(PlutusTx.compile [||wrap||])
     where
-        wrap = PSU.V1.mkUntypedValidator
+        wrap = Scripts.mkUntypedValidator
 
 datumRedeemer42Validator :: Plutus.Validator
 datumRedeemer42Validator = validatorScript typedValidator
@@ -128,7 +128,7 @@ datumRedeemer42Contract = do
             <> Constraints.unspentOutputs utxos
         tx2 =
             mconcat [Constraints.mustSpendScriptOutput oref (Plutus.Redeemer $ BI.mkI 42) | oref <- orefs]
-            <> Constraints.mustIncludeDatum (Plutus.Datum $ BI.mkB "Not 42") -- List comprehension -- Changing redeemer value correctly throws ValidationError
+            <> Constraints.mustIncludeDatumInTx (Plutus.Datum $ BI.mkB "Not 42") -- List comprehension -- Changing redeemer value correctly throws ValidationError
             <> Constraints.mustValidateIn (to $ 1596059100000) -- doesn't seem to care what datum is
     Contract.logDebug $ requiredDatums tx2 -- does include wrong BS datum, idk
     ledgerTx2 <- submitTxConstraintsWith @Void lookups tx2

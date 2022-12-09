@@ -56,7 +56,7 @@ countRedeemersPolicy n ctx =  traceIfFalse "Number of redeemers does not match e
 policy :: Scripts.MintingPolicy
 policy = PlutusV2.mkMintingPolicyScript $$(PlutusTx.compile [||wrap||])
     where
-        wrap = PSU.V2.mkUntypedMintingPolicy countRedeemersPolicy
+        wrap = Scripts.mkUntypedMintingPolicy countRedeemersPolicy
 
 {-
     As a Script

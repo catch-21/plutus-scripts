@@ -93,7 +93,7 @@ checkRedeemersPolicy expRedeemers ctx =  traceIfFalse "Redeemers do not match ex
 policy :: Scripts.MintingPolicy
 policy = PlutusV2.mkMintingPolicyScript $$(PlutusTx.compile [||wrap||])
     where
-        wrap = PSU.V2.mkUntypedMintingPolicy checkRedeemersPolicy
+        wrap = Scripts.mkUntypedMintingPolicy checkRedeemersPolicy
 
 {-
     As a Script

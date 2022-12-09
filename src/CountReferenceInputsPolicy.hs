@@ -56,7 +56,7 @@ countReferenceInputssPolicy n ctx =  traceIfFalse "Number of reference inputs do
 policy :: Scripts.MintingPolicy
 policy = PlutusV2.mkMintingPolicyScript $$(PlutusTx.compile [||wrap||])
     where
-        wrap = PSU.V2.mkUntypedMintingPolicy countReferenceInputssPolicy
+        wrap = Scripts.mkUntypedMintingPolicy countReferenceInputssPolicy
 
 {-
     As a Script

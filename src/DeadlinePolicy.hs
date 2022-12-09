@@ -61,7 +61,7 @@ mkPolicyV1 dl _ ctx = PlutusV1.from dl `PlutusV1.contains` range
 
 policyV1 :: PlutusV1.POSIXTime -> Scripts.MintingPolicy
 policyV1 s = PlutusV1.mkMintingPolicyScript $
-        $$(PlutusTx.compile [||PSU.V1.mkUntypedMintingPolicy . mkPolicyV1||])
+        $$(PlutusTx.compile [||Scripts.mkUntypedMintingPolicy . mkPolicyV1||])
         `PlutusTx.applyCode`
         PlutusTx.liftCode s
 
@@ -94,7 +94,7 @@ mkPolicyV2 dl _ ctx = PlutusV2.from dl `PlutusV1.contains` range -- there's no P
 
 policyV2 :: PlutusV2.POSIXTime -> Scripts.MintingPolicy
 policyV2 s = PlutusV2.mkMintingPolicyScript $
-        $$(PlutusTx.compile [||PSU.V2.mkUntypedMintingPolicy . mkPolicyV2||])
+        $$(PlutusTx.compile [||Scripts.mkUntypedMintingPolicy . mkPolicyV2||])
         `PlutusTx.applyCode`
         PlutusTx.liftCode s
 

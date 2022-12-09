@@ -128,7 +128,7 @@ expectedRefScriptPolicy expRefScript ctx =
 compiledCode :: CompiledCode (BuiltinData -> BuiltinData -> ())
 compiledCode = $$(PlutusTx.compile [|| wrap ||])
     where
-        wrap = PSU.V2.mkUntypedMintingPolicy expectedRefScriptPolicy
+        wrap = Scripts.mkUntypedMintingPolicy expectedRefScriptPolicy
 
 policyScriptHash :: ScriptHash
 policyScriptHash = PSU.V2.scriptHash $ fromCompiledCode compiledCode

@@ -80,7 +80,7 @@ expectedInlinePolicy expRefTxos ctx =  traceIfFalse "Reference inputs do not mat
 
 policy :: Scripts.MintingPolicy
 policy = PlutusV2.mkMintingPolicyScript
-        $$(PlutusTx.compile [||PSU.V2.mkUntypedMintingPolicy expectedInlinePolicy||])
+        $$(PlutusTx.compile [||Scripts.mkUntypedMintingPolicy expectedInlinePolicy||])
 
 {-
    As a Short Byte String

@@ -97,7 +97,7 @@ expectedInlinePolicy d refs ctx = traceIfFalse "Unexpected inline datum at each 
 
 policy :: PlutusV2.Datum -> Scripts.MintingPolicy
 policy d = PlutusV2.mkMintingPolicyScript $
-        $$(PlutusTx.compile [||PSU.V2.mkUntypedMintingPolicy . expectedInlinePolicy||])
+        $$(PlutusTx.compile [||Scripts.mkUntypedMintingPolicy . expectedInlinePolicy||])
         `PlutusTx.applyCode`
         PlutusTx.liftCode d
 {-

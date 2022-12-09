@@ -84,7 +84,7 @@ checkDatumsPolicy expRedeemers ctx =  traceIfFalse "Datums in txInfoData do not 
 policy :: Scripts.MintingPolicy
 policy = PlutusV2.mkMintingPolicyScript $$(PlutusTx.compile [||wrap||])
     where
-        wrap = PSU.V2.mkUntypedMintingPolicy checkDatumsPolicy
+        wrap = Scripts.mkUntypedMintingPolicy checkDatumsPolicy
 
 {-
     As a Script

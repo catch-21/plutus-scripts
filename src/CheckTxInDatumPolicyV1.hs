@@ -126,7 +126,7 @@ expectedInlinePolicy expInline ctx = traceIfFalse "Expected datumhash is not in 
 compiledCode :: PlutusTx.CompiledCode (BuiltinData -> BuiltinData -> ())
 compiledCode = $$(PlutusTx.compile [|| wrap ||])
      where
-         wrap = PSU.V1.mkUntypedMintingPolicy expectedInlinePolicy
+         wrap = Scripts.mkUntypedMintingPolicy expectedInlinePolicy
 
 policy :: Scripts.MintingPolicy
 policy = PlutusV1.mkMintingPolicyScript compiledCode

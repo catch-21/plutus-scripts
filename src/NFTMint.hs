@@ -92,7 +92,7 @@ policy mp = PlutusV2.mkMintingPolicyScript $
     `PlutusTx.applyCode`
      PlutusTx.liftCode mp
   where
-    wrap mp' = PSU.V2.mkUntypedMintingPolicy $ mkPolicy mp'
+    wrap mp' = Scripts.mkUntypedMintingPolicy $ mkPolicy mp'
 
 {-
     As a Script

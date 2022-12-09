@@ -75,12 +75,12 @@ tokenNamePolicyV2 tn ctx = traceIfFalse "wrong token name" checkTokenName
 -}
 
 policyV1 :: Scripts.MintingPolicy
-policyV1 = PlutusV1.mkMintingPolicyScript $$(PlutusTx.compile [|| PSU.V1.mkUntypedMintingPolicy tokenNamePolicyV1 ||])
+policyV1 = PlutusV1.mkMintingPolicyScript $$(PlutusTx.compile [|| Scripts.mkUntypedMintingPolicy tokenNamePolicyV1 ||])
 
 policyV2 :: Scripts.MintingPolicy
-policyV2 = PlutusV2.mkMintingPolicyScript $$(PlutusTx.compile [|| PSU.V2.mkUntypedMintingPolicy tokenNamePolicyV2 ||])
+policyV2 = PlutusV2.mkMintingPolicyScript $$(PlutusTx.compile [|| Scripts.mkUntypedMintingPolicy tokenNamePolicyV2 ||])
 
-printPIRV2 = pretty $ fromJust $ getPir $$(PlutusTx.compile [|| PSU.V2.mkUntypedMintingPolicy tokenNamePolicyV2 ||])
+printPIRV2 = pretty $ fromJust $ getPir $$(PlutusTx.compile [|| Scripts.mkUntypedMintingPolicy tokenNamePolicyV2 ||])
 
 {-
     As a Script
